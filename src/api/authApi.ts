@@ -716,3 +716,203 @@ export async function getUserLedger(): Promise<{
 
   return { profile, entries };
 }
+
+export async function getUserProfile(): Promise<UserProfile | null> {
+  try {
+    const current = await getCurrentUser();
+
+    if (!current?.userId) return null;
+    const id = current.userId;
+
+    const result: any = await apiClient.graphql({
+      query: queries.getUser,
+      variables: { id },
+    });
+
+    return result?.data?.getUser ?? null;
+  } catch (err) {
+    console.warn("getUserProfile failed:", err);
+    return null;
+  }
+}
+
+// ---------- NEARBY CATCHES FOR TARGET ZONES ----------
+
+type RawCatchItem = {
+  id: string;
+  userId: string;
+  lat: number | null;
+  lng: number | null;
+  createdAt: string;
+  _deleted?: boolean | null;
+};
+
+export type NearbyCatch = {
+  id: string;
+  userId: string;
+  lat: number;
+  lng: number;
+  createdAt: string;
+};
+
+// Rough Haversine in miles
+function haversineMiles(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const R = 3958.8; // Earth radius in miles
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/**
+ * Fetch catches near a center point, within radiusMiles, newer than hoursBack,
+ * excluding the current user's own catches.
+ */
+export async function getNearbyCatches(params: {
+  centerLat: number;
+  centerLng: number;
+  radiusMiles: number;
+  hoursBack: number;
+}): Promise<NearbyCatch[]> {
+  const { centerLat, centerLng, radiusMiles, hoursBack } = params;
+
+  const now = Date.now();
+  const cutoff = now - hoursBack * 60 * 60 * 1000;
+
+  // Who is the current user?
+  let currentUserId: string | null = null;
+  try {
+    const current = await getCurrentUser();
+    currentUserId = current?.userId ?? null;
+  } catch (e) {
+    console.warn("getNearbyCatches: getCurrentUser failed:", e);
+  }
+
+  const listCatchesQuery = (queries as any).listCatches;
+  if (!listCatchesQuery) {
+    console.warn("listCatches query not found in graphql/queries.js");
+    return [];
+  }
+
+  try {
+    const result: any = await apiClient.graphql({
+      query: listCatchesQuery,
+      variables: {
+        limit: 500, // MVP: simple, client-side filtering
+      },
+    });
+
+    const items: RawCatchItem[] =
+      result?.data?.listCatches?.items ?? [];
+
+    const filtered = items
+      .filter((i) => !i._deleted)
+      .filter((i) => i.lat != null && i.lng != null)
+      .filter((i) => !currentUserId || i.userId !== currentUserId)
+      .filter((i) => {
+        const t = new Date(i.createdAt).getTime();
+        return !Number.isNaN(t) && t >= cutoff;
+      })
+      .filter((i) => {
+        return (
+          haversineMiles(
+            centerLat,
+            centerLng,
+            i.lat as number,
+            i.lng as number
+          ) <= radiusMiles
+        );
+      })
+      .map((i) => ({
+        id: i.id,
+        userId: i.userId,
+        lat: i.lat as number,
+        lng: i.lng as number,
+        createdAt: i.createdAt,
+      }));
+
+    return filtered;
+  } catch (e) {
+    console.error("getNearbyCatches: GraphQL error:", e);
+    return [];
+  }
+}
+
+/**
+ * DEV ONLY: Seed some fake catches around Block Island
+ * so TargetZones previews have something to find.
+ */
+export async function seedDemoCatchesAroundBlockIsland() {
+  const createCatchMutation = (mutations as any).createCatch;
+  if (!createCatchMutation) {
+    console.warn("createCatch mutation not found in graphql/mutations.js");
+    return;
+  }
+
+  // Approx Block Island center
+  const baseLat = 41.1700;
+  const baseLng = -71.5600;
+
+  // Fake demo user – not your current user
+  const demoUserId = "DEMO-USER-BI-1";
+
+  const now = Date.now();
+  const catchesToCreate = 12; // "HIGH" bucket
+
+  const createOne = async (i: number) => {
+    // small random spread within ~3 miles
+    const randMilesLat = (Math.random() - 0.5) * 6; // -3..+3
+    const randMilesLng = (Math.random() - 0.5) * 6;
+
+    const milesToDegLat = (m: number) => m / 69;
+    const milesToDegLng = (m: number, lat: number) =>
+      m / (69 * Math.cos((lat * Math.PI) / 180));
+
+    const lat = baseLat + milesToDegLat(randMilesLat);
+    const lng = baseLng + milesToDegLng(randMilesLng, baseLat);
+
+    const createdAt = new Date(now - i * 3 * 60 * 60 * 1000).toISOString(); // each 3 hours apart
+
+    const input = {
+      userId: demoUserId,
+      species: "Striped Bass",
+      lat,
+      lng,
+      videoKey: "demo/video-key.mp4",
+      thumbnailKey: "demo/thumbnail.jpg",
+      basePoints: 100,
+      karmaPoints: 0,
+      verificationStatus: "PENDING_VERIFICATION",
+      createdAt,
+    };
+
+    await apiClient.graphql({
+      query: createCatchMutation,
+      variables: { input },
+    });
+  };
+
+  for (let i = 0; i < catchesToCreate; i++) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      await createOne(i);
+    } catch (e) {
+      console.error("seedDemoCatchesAroundBlockIsland error:", e);
+    }
+  }
+
+  console.log("Seeded demo Block Island catches.");
+}

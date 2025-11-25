@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { SignInPage } from "./pages/SignInPage";
 import { HomePage } from "./pages/HomePage";
 import { PointsHistoryPage } from "./pages/PointsHistoryPage";
+import { TargetZonesPage } from "./pages/TargetZonesPage";
 
 const App: React.FC = () => {
   return (
@@ -11,7 +12,8 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/signin" element={<SignInPage />} />
         <Route path="/home" element={<HomePage />} />
-          <Route path="/history" element={<PointsHistoryPage />} />
+        <Route path="/history" element={<PointsHistoryPage />} />
+        <Route path="/targetzones" element={<TargetZonesPage />} />
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
     </div>
