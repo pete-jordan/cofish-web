@@ -79,7 +79,7 @@ export const PointsHistoryPage: React.FC = () => {
         {entries.map((entry) => {
           const date = new Date(entry.createdAt);
           const isCatch = entry.type === "CATCH";
-          const isCredit = entry.totalPoints > 0;
+         // const isCredit = entry.totalPoints > 0;
           const absChange = Math.abs(entry.totalPoints);
 
           const typeLabel = isCatch ? "Catch" : "TargetZone Purchase";
