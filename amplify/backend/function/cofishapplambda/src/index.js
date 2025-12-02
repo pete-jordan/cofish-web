@@ -1,5 +1,10 @@
 // amplify/backend/function/cofishapplambda/src/index.js
 
+// Ensure fetch is available (Node.js 18+ has it globally, but adding check for safety)
+if (typeof fetch === 'undefined') {
+  console.error("ERROR: fetch is not available in this runtime");
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type",
@@ -59,12 +64,26 @@ exports.handler = async (event) => {
     console.log(`Received ${frames.length} frames for analysis`);
 
     // Analyze all frames
-    const frameResults = await Promise.all(
-      frames.map((frameDataUrl) => callOpenAiForLiveness(frameDataUrl))
-    );
+    let frameResults;
+    try {
+      frameResults = await Promise.all(
+        frames.map((frameDataUrl) => callOpenAiForLiveness(frameDataUrl))
+      );
+      console.log(`Successfully analyzed ${frameResults.length} frames`);
+    } catch (frameError) {
+      console.error("Error analyzing frames:", frameError);
+      throw new Error(`Frame analysis failed: ${frameError?.message || frameError}`);
+    }
 
     // Aggregate results
-    const aggregated = aggregateFrameResults(frameResults);
+    let aggregated;
+    try {
+      aggregated = aggregateFrameResults(frameResults);
+      console.log("Aggregated results:", JSON.stringify(aggregated, null, 2));
+    } catch (aggError) {
+      console.error("Error aggregating results:", aggError);
+      throw new Error(`Aggregation failed: ${aggError?.message || aggError}`);
+    }
     let { aliveScore, confidence, explanation, fishFingerprint, species } = aggregated;
 
     let fishEmbedding = undefined;
@@ -96,10 +115,16 @@ exports.handler = async (event) => {
     };
   } catch (err) {
     console.error("analyzeVideo ERROR:", err);
+    console.error("Error stack:", err?.stack);
+    console.error("Error message:", err?.message);
     return {
       statusCode: 500,
       headers: corsHeaders,
-      body: JSON.stringify({ error: "Analysis failed in Lambda" }),
+      body: JSON.stringify({ 
+        error: "Analysis failed in Lambda",
+        message: err?.message || "Unknown error",
+        details: process.env.NODE_ENV === "development" ? err?.stack : undefined
+      }),
     };
   }
 };
