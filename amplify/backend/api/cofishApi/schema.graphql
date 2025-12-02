@@ -1,0 +1,102 @@
+type User
+  @model
+  @auth(rules: [
+    { allow: owner },
+    { allow: private }
+  ]) {
+  id: ID!
+  email: AWSEmail!
+  displayName: String
+  pointsBalance: Int!
+  createdAt: AWSDateTime
+  expoPushToken: String
+
+  catches: [Catch]
+    @hasMany(indexName: "catchesByUser", fields: ["id"])
+
+  purchases: [InfoPurchase]
+    @hasMany(indexName: "purchasesByUser", fields: ["id"])
+}
+
+type Catch
+  @model
+  @auth(rules: [
+    { allow: owner },
+    { allow: private }
+  ]) {
+  id: ID!
+
+  # This is the foreign key to User.id
+  userId: ID!
+    @index(
+      name: "catchesByUser"
+      sortKeyFields: ["createdAt"]
+      queryField: "catchesByUser"
+    )
+
+  user: User @belongsTo(fields: ["userId"])
+
+  createdAt: AWSDateTime!
+  species: String
+  lat: Float
+  lng: Float
+  videoKey: String
+  thumbnailKey: String
+  basePoints: Int!
+  karmaPoints: Int!
+  verificationStatus: String!
+
+  # ---- Analysis fields (optional) ----
+  aliveScore: Float
+  analysisConfidence: Float
+  analysisNote: String
+
+  fishFingerprint: String
+  fishEmbedding: AWSJSON
+
+}
+
+
+type InfoPurchase
+  @model
+  @auth(rules: [
+    { allow: owner },
+    { allow: private }
+  ]) {
+  id: ID!
+
+  # Foreign key to User.id
+  userId: ID!
+    @index(
+      name: "purchasesByUser"
+      sortKeyFields: ["createdAt"]
+      queryField: "purchasesByUser"
+    )
+
+  user: User @belongsTo(fields: ["userId"])
+
+  createdAt: AWSDateTime!
+  centerLat: Float!
+  centerLng: Float!
+  radiusMiles: Int!
+  speciesFilter: String
+  baseCostPoints: Int!
+  discountPercent: Int!
+  finalCostPoints: Int!
+  avgAgeHours: Float
+  includedCatchIds: [ID]
+}
+
+type KarmaEvent
+  @model
+  @auth(rules: [
+    { allow: private, operations: [create, read, update] }
+  ]) {
+  id: ID!
+  helperUserId: ID!
+  beneficiaryUserId: ID!
+  sourceCatchId: ID!
+  beneficiaryCatchId: ID!
+  points: Int!
+  createdAt: AWSDateTime!
+}

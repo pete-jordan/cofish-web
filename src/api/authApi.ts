@@ -585,6 +585,113 @@ export async function awardKarmaForNewCatch(catchRecord: any) {
   }
 }
 
+// ---------- AWARD POINTS FOR VERIFIED CATCH ----------
+
+export async function awardPointsForVerifiedCatch(catchId: string) {
+  const getCatchQuery = (queries as any).getCatch;
+  const updateCatchMutation = (mutations as any).updateCatch;
+  const getUserQuery = (queries as any).getUser;
+  const updateUserMutation = (mutations as any).updateUser;
+
+  if (!getCatchQuery || !updateCatchMutation) {
+    throw new Error("Catch queries/mutations not found.");
+  }
+  if (!getUserQuery || !updateUserMutation) {
+    throw new Error("User queries/mutations not found.");
+  }
+
+  // 1) Load Catch
+  let catchRecord: any;
+  try {
+    const result: any = await apiClient.graphql({
+      query: getCatchQuery,
+      variables: { id: catchId },
+    });
+    catchRecord = result.data?.getCatch;
+  } catch (e: any) {
+    console.error("awardPointsForVerifiedCatch: getCatch failed", e);
+    throw new Error(
+      e?.errors?.[0]?.message || e?.message || "Failed to load catch."
+    );
+  }
+
+  if (!catchRecord) {
+    throw new Error("Catch not found.");
+  }
+
+  if (catchRecord.verificationStatus !== "VERIFIED") {
+    throw new Error("Catch is not verified.");
+  }
+
+  // 2) Update Catch status to AWARDED
+  try {
+    await apiClient.graphql({
+      query: updateCatchMutation,
+      variables: {
+        input: {
+          id: catchRecord.id,
+          verificationStatus: "AWARDED",
+          _version: catchRecord._version,
+        },
+      },
+    });
+  } catch (e: any) {
+    console.error("awardPointsForVerifiedCatch: updateCatch failed", e);
+    throw new Error(
+      e?.errors?.[0]?.message || e?.message || "Failed to update catch."
+    );
+  }
+
+  // 3) Award points to user
+  const userId = catchRecord.userId;
+  let userRecord: any;
+  try {
+    const userResult: any = await apiClient.graphql({
+      query: getUserQuery,
+      variables: { id: userId },
+    });
+    userRecord = userResult.data?.getUser;
+  } catch (e: any) {
+    console.error("awardPointsForVerifiedCatch: getUser failed", e);
+    throw new Error(
+      e?.errors?.[0]?.message || e?.message || "Failed to load user."
+    );
+  }
+
+  if (!userRecord) {
+    throw new Error("User not found for this catch.");
+  }
+
+  const currentBalance = userRecord.pointsBalance ?? 0;
+  const pointsToAward = catchRecord.basePoints ?? 100;
+  const newBalance = currentBalance + pointsToAward;
+
+  try {
+    await apiClient.graphql({
+      query: updateUserMutation,
+      variables: {
+        input: {
+          id: userRecord.id,
+          pointsBalance: newBalance,
+          _version: userRecord._version,
+        },
+      },
+    });
+  } catch (e: any) {
+    console.error("awardPointsForVerifiedCatch: updateUser failed", e);
+    throw new Error(
+      e?.errors?.[0]?.message ||
+        e?.message ||
+        "Failed to update user points balance."
+    );
+  }
+
+  return {
+    pointsAwarded: pointsToAward,
+    newBalance,
+  };
+}
+
 // ---------- LEDGER / POINTS HISTORY ----------
 
 export async function getUserLedger(): Promise<{

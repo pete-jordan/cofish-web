@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "paths": {
+    "/items": {
+      "name": "/items",
+      "lambdaFunction": "cofishapplambda",
+      "permissions": {
+        "setting": "open"
+      }
+    },
+    "/analyzeVideo": {
+      "name": "/analyzeVideo",
+      "lambdaFunction": "cofishapplambda",
+      "permissions": {
+        "setting": "open"
+      }
+    },
+    "/getUploadUrl": {
+      "name": "/getUploadUrl",
+      "lambdaFunction": "cofishGetUploadUrl",
+      "permissions": {
+        "setting": "open"
+      }
+    }
+  }
+}

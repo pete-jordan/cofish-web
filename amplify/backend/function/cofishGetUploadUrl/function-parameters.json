@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "storage": {
+      "cofishStorage": [
+        "create",
+        "read",
+        "update"
+      ]
+    }
+  },
+  "lambdaLayers": []
+}

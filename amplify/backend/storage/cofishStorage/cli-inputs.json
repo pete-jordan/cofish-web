@@ -1,0 +1,14 @@
+{
+  "resourceName": "cofishStorage",
+  "policyUUID": "048e2bb6",
+  "bucketName": "cofishapp82eb624cb91b409a9682420458a78bba",
+  "storageAccess": "auth",
+  "guestAccess": [],
+  "authAccess": [
+    "CREATE_AND_UPDATE",
+    "READ",
+    "DELETE"
+  ],
+  "triggerFunction": "NONE",
+  "groupAccess": {}
+}

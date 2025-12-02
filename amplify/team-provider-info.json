@@ -1,0 +1,43 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-cofishapp-dev-03094-authRole",
+      "UnauthRoleArn": "arn:aws:iam::241533137997:role/amplify-cofishapp-dev-03094-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::241533137997:role/amplify-cofishapp-dev-03094-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-cofishapp-dev-03094-deployment",
+      "UnauthRoleName": "amplify-cofishapp-dev-03094-unauthRole",
+      "StackName": "amplify-cofishapp-dev-03094",
+      "StackId": "arn:aws:cloudformation:us-east-1:241533137997:stack/amplify-cofishapp-dev-03094/7b7ea7b0-c3cf-11f0-a29c-0affccb07fed",
+      "AmplifyAppId": "d1ldjn606b7nlu"
+    },
+    "categories": {
+      "auth": {
+        "cofishappc8f012f2": {}
+      },
+      "storage": {
+        "cofishStorage": {}
+      },
+      "function": {
+        "cofishapplambda": {
+          "deploymentBucketName": "amplify-cofishapp-dev-03094-deployment",
+          "s3Key": "amplify-builds/cofishapplambda-4e45624d776651775164-build.zip",
+          "openaiApiKey": "REMOVED_FOR_SECURITY",
+          "done": "done"
+        },
+        "cofishGetUploadUrl": {
+          "deploymentBucketName": "amplify-cofishapp-dev-03094-deployment",
+          "s3Key": "amplify-builds/cofishGetUploadUrl-517357506e386c6b722f-build.zip"
+        },
+        "analyzeCatchLambda": {
+          "deploymentBucketName": "amplify-cofishapp-dev-03094-deployment",
+          "s3Key": "amplify-builds/analyzeCatchLambda-33456564443547437046-build.zip"
+        }
+      },
+      "api": {
+        "cofishApi": {},
+        "restapi": {}
+      }
+    }
+  }
+}

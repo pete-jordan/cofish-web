@@ -1,0 +1,187 @@
+{
+  "api": {
+    "cofishApi": {
+      "dependsOn": [
+        {
+          "attributes": [
+            "UserPoolId"
+          ],
+          "category": "auth",
+          "resourceName": "cofishappc8f012f2"
+        }
+      ],
+      "output": {
+        "authConfig": {
+          "additionalAuthenticationProviders": [],
+          "defaultAuthentication": {
+            "authenticationType": "AMAZON_COGNITO_USER_POOLS",
+            "userPoolConfig": {
+              "userPoolId": "authcofishappc8f012f2"
+            }
+          }
+        }
+      },
+      "providerPlugin": "awscloudformation",
+      "service": "AppSync"
+    },
+    "restapi": {
+      "dependsOn": [
+        {
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "function",
+          "resourceName": "cofishapplambda"
+        },
+        {
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "function",
+          "resourceName": "cofishGetUploadUrl"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "API Gateway"
+    }
+  },
+  "auth": {
+    "cofishappc8f012f2": {
+      "customAuth": false,
+      "dependsOn": [],
+      "frontendAuthConfig": {
+        "mfaConfiguration": "OFF",
+        "mfaTypes": [
+          "SMS"
+        ],
+        "passwordProtectionSettings": {
+          "passwordPolicyCharacters": [],
+          "passwordPolicyMinLength": 8
+        },
+        "signupAttributes": [
+          "EMAIL"
+        ],
+        "socialProviders": [],
+        "usernameAttributes": [
+          "EMAIL"
+        ],
+        "verificationMechanisms": [
+          "EMAIL"
+        ]
+      },
+      "providerPlugin": "awscloudformation",
+      "service": "Cognito"
+    }
+  },
+  "function": {
+    "analyzeCatchLambda": {
+      "build": true,
+      "dependsOn": [
+        {
+          "attributes": [
+            "GraphQLAPIIdOutput",
+            "GraphQLAPIEndpointOutput"
+          ],
+          "category": "api",
+          "resourceName": "cofishApi"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    },
+    "cofishGetUploadUrl": {
+      "build": true,
+      "dependsOn": [
+        {
+          "attributes": [
+            "BucketName"
+          ],
+          "category": "storage",
+          "resourceName": "cofishStorage"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    },
+    "cofishapplambda": {
+      "build": true,
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    }
+  },
+  "parameters": {
+    "AMPLIFY_function_analyzeCatchLambda_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "analyzeCatchLambda"
+        }
+      ]
+    },
+    "AMPLIFY_function_analyzeCatchLambda_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "analyzeCatchLambda"
+        }
+      ]
+    },
+    "AMPLIFY_function_cofishGetUploadUrl_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "cofishGetUploadUrl"
+        }
+      ]
+    },
+    "AMPLIFY_function_cofishGetUploadUrl_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "cofishGetUploadUrl"
+        }
+      ]
+    },
+    "AMPLIFY_function_cofishapplambda_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "cofishapplambda"
+        }
+      ]
+    },
+    "AMPLIFY_function_cofishapplambda_done": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "cofishapplambda"
+        }
+      ]
+    },
+    "AMPLIFY_function_cofishapplambda_openaiApiKey": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "cofishapplambda"
+        }
+      ]
+    },
+    "AMPLIFY_function_cofishapplambda_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "cofishapplambda"
+        }
+      ]
+    }
+  },
+  "storage": {
+    "cofishStorage": {
+      "dependsOn": [],
+      "providerPlugin": "awscloudformation",
+      "service": "S3"
+    }
+  }
+}

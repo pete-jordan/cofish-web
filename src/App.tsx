@@ -5,6 +5,9 @@ import { SignInPage } from "./pages/SignInPage";
 import { HomePage } from "./pages/HomePage";
 import { PointsHistoryPage } from "./pages/PointsHistoryPage";
 import { TargetZonesPage } from "./pages/TargetZonesPage";
+import { VideoTestPage } from "./pages/VideoTestPage";
+import { PostCatchPage } from "./pages/PostCatchPage";
+
 
 const App: React.FC = () => {
   return (
@@ -14,6 +17,9 @@ const App: React.FC = () => {
         <Route path="/home" element={<HomePage />} />
         <Route path="/history" element={<PointsHistoryPage />} />
         <Route path="/targetzones" element={<TargetZonesPage />} />
+        <Route path="/video-test" element={<VideoTestPage />} />
+        <Route path="/post-catch" element={<PostCatchPage />} />
+
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
     </div>

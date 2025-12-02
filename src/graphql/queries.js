@@ -413,6 +413,11 @@ export const catchesByUser = /* GraphQL */ `
         basePoints
         karmaPoints
         verificationStatus
+        aliveScore
+        analysisConfidence
+        analysisNote
+        fishFingerprint
+        fishEmbedding
         updatedAt
         _version
         _deleted

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "api": {
+      "cofishApi": [
+        "Mutation"
+      ]
+    }
+  },
+  "lambdaLayers": []
+}

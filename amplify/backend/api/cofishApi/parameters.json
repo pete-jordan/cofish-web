@@ -1,0 +1,11 @@
+{
+  "AppSyncApiName": "cofishApi",
+  "DynamoDBBillingMode": "PAY_PER_REQUEST",
+  "DynamoDBEnableServerSideEncryption": false,
+  "AuthCognitoUserPoolId": {
+    "Fn::GetAtt": [
+      "authcofishappc8f012f2",
+      "Outputs.UserPoolId"
+    ]
+  }
+}

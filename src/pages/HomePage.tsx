@@ -4,7 +4,6 @@ import { useNavigate } from "react-router-dom";
 import {
   getCurrentUserProfileWithBalance,
   signOut,
-  simulateCatchAndAwardPoints,
 } from "../api/authApi";
 import type { UserProfile } from "../api/authApi";
 
@@ -12,8 +11,6 @@ export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState<null | "EARN">(null);
-  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -46,22 +43,8 @@ export const HomePage: React.FC = () => {
   };
 
   const handleEarnPoints = async () => {
-    if (!profile) return;
-    setBusy("EARN");
-    setMessage(null);
-
-    try {
-      const result = await simulateCatchAndAwardPoints();
-      setProfile((prev) =>
-        prev ? { ...prev, pointsBalance: result.pointsBalance } : prev
-      );
-      setMessage("Catch recorded! +100 points added.");
-    } catch (e: any) {
-      console.error("Earn points failed:", e);
-      setMessage(e?.message || "Failed to post catch.");
-    } finally {
-      setBusy(null);
-    }
+    // Navigate to post catch page instead of simulating
+    navigate("/post-catch");
   };
 
   const handleGoToTargetZones = () => {
@@ -81,8 +64,6 @@ export const HomePage: React.FC = () => {
   }
 
   if (!profile) return null;
-
-  const isEarning = busy === "EARN";
 
   const avatarLetter =
     profile.displayName?.[0]?.toUpperCase() ||
@@ -123,9 +104,8 @@ export const HomePage: React.FC = () => {
       <main className="px-4 py-4 space-y-3">
         {/* Earn Points */}
         <button
-          className="w-full rounded-2xl bg-slate-900 border border-emerald-600/60 px-4 py-3 text-left shadow-md shadow-emerald-900/30 disabled:opacity-60"
+          className="w-full rounded-2xl bg-slate-900 border border-emerald-600/60 px-4 py-3 text-left shadow-md shadow-emerald-900/30"
           onClick={handleEarnPoints}
-          disabled={isEarning}
         >
           <div className="text-xs font-semibold text-emerald-300 uppercase tracking-wide">
             Earn Points
@@ -136,7 +116,7 @@ export const HomePage: React.FC = () => {
                 Post a Catch
               </div>
               <div className="text-xs text-slate-400">
-                Simulate posting a verified catch and get{" "}
+                Record a video of your catch to earn{" "}
                 <span className="text-emerald-300 font-semibold">+100 pts</span>.
               </div>
             </div>
@@ -193,11 +173,6 @@ export const HomePage: React.FC = () => {
           </div>
         </button>
 
-        {message && (
-          <div className="text-xs text-emerald-300 mt-1">
-            {message}
-          </div>
-        )}
       </main>
     </div>
   );
