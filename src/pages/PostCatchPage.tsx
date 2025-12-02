@@ -373,7 +373,15 @@ export const PostCatchPage: React.FC = () => {
 
       // 4) Analyze video (multiple frames)
       setAnalyzing(true);
-      const result = await analyzeCatchVideo(videoBlob);
+      console.log("Starting video analysis, blob size:", videoBlob.size, "type:", videoBlob.type);
+      let result;
+      try {
+        result = await analyzeCatchVideo(videoBlob);
+        console.log("Video analysis complete:", result);
+      } catch (analysisError: any) {
+        console.error("Video analysis failed:", analysisError);
+        throw new Error(`Video analysis failed: ${analysisError?.message || "Unknown error"}`);
+      }
       setAnalysis(result);
 
       // 5) Check uniqueness

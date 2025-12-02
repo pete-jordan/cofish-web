@@ -21,12 +21,33 @@ async function captureFrames(
 ): Promise<string[]> {
   return new Promise((resolve, reject) => {
     const video = document.createElement("video");
-    video.src = URL.createObjectURL(videoBlob);
+    const objectUrl = URL.createObjectURL(videoBlob);
+    video.src = objectUrl;
     video.muted = true;
     video.playsInline = true;
+    video.preload = "metadata";
 
     const frames: string[] = [];
     let framesCaptured = 0;
+    let timeoutId: number | null = null;
+    const TIMEOUT_MS = 30000; // 30 second timeout for frame capture
+
+    const cleanup = () => {
+      if (timeoutId !== null) {
+        clearTimeout(timeoutId);
+      }
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    const rejectWithCleanup = (error: Error) => {
+      cleanup();
+      reject(error);
+    };
+
+    // Set overall timeout
+    timeoutId = window.setTimeout(() => {
+      rejectWithCleanup(new Error("Frame capture timed out. Video may be too large or in an unsupported format."));
+    }, TIMEOUT_MS);
 
     video.onloadedmetadata = () => {
       try {
@@ -34,9 +55,36 @@ async function captureFrames(
           ? video.duration
           : 0;
 
-        if (duration === 0) {
-          // Fallback: capture at time 0
-          video.currentTime = 0;
+        if (duration === 0 || !video.videoWidth || !video.videoHeight) {
+          // Fallback: try to capture at time 0 after a short delay
+          setTimeout(() => {
+            try {
+              const canvas = document.createElement("canvas");
+              const w = video.videoWidth || 640;
+              const h = video.videoHeight || 360;
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext("2d");
+              if (!ctx) {
+                rejectWithCleanup(new Error("No 2D canvas context"));
+                return;
+              }
+              video.currentTime = 0;
+              // Wait a bit for seek to complete
+              setTimeout(() => {
+                try {
+                  ctx.drawImage(video, 0, 0, w, h);
+                  const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+                  cleanup();
+                  resolve([dataUrl]); // Return single frame as fallback
+                } catch (err) {
+                  rejectWithCleanup(new Error(`Failed to capture frame: ${err}`));
+                }
+              }, 500);
+            } catch (err) {
+              rejectWithCleanup(new Error(`Failed to setup fallback capture: ${err}`));
+            }
+          }, 500);
           return;
         }
 
@@ -50,11 +98,30 @@ async function captureFrames(
           }
         }
 
-        const captureFrame = (time: number) => {
+        let seekTimeout: number | null = null;
+        const SEEK_TIMEOUT_MS = 5000; // 5 seconds per frame seek
+
+        const captureFrame = (time: number, frameIndex: number) => {
+          // Clear any previous seek timeout
+          if (seekTimeout !== null) {
+            clearTimeout(seekTimeout);
+          }
+
+          // Set timeout for this seek operation
+          seekTimeout = window.setTimeout(() => {
+            rejectWithCleanup(new Error(`Frame capture timed out at frame ${frameIndex + 1}`));
+          }, SEEK_TIMEOUT_MS);
+
           video.currentTime = time;
         };
 
         video.onseeked = () => {
+          // Clear seek timeout
+          if (seekTimeout !== null) {
+            clearTimeout(seekTimeout);
+            seekTimeout = null;
+          }
+
           try {
             const canvas = document.createElement("canvas");
             const w = video.videoWidth || 640;
@@ -63,7 +130,7 @@ async function captureFrames(
             canvas.height = h;
             const ctx = canvas.getContext("2d");
             if (!ctx) {
-              reject(new Error("No 2D canvas context"));
+              rejectWithCleanup(new Error("No 2D canvas context"));
               return;
             }
             ctx.drawImage(video, 0, 0, w, h);
@@ -72,25 +139,29 @@ async function captureFrames(
             framesCaptured++;
 
             if (framesCaptured < times.length) {
-              captureFrame(times[framesCaptured]);
+              captureFrame(times[framesCaptured], framesCaptured);
             } else {
-              URL.revokeObjectURL(video.src);
+              cleanup();
               resolve(frames);
             }
           } catch (err) {
-            reject(err);
+            rejectWithCleanup(new Error(`Failed to capture frame ${framesCaptured + 1}: ${err}`));
           }
         };
 
-        captureFrame(times[0]);
+        // Start capturing first frame
+        captureFrame(times[0], 0);
       } catch (err) {
-        reject(err);
+        rejectWithCleanup(new Error(`Frame capture setup failed: ${err}`));
       }
     };
 
     video.onerror = () => {
-      reject(new Error("Failed to load video for frame capture"));
+      rejectWithCleanup(new Error("Failed to load video for frame capture"));
     };
+
+    // Load the video
+    video.load();
   });
 }
 

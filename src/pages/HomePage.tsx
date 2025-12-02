@@ -1,3 +1,4 @@
+
 // src/pages/HomePage.tsx
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -140,8 +141,7 @@ export const HomePage: React.FC = () => {
                 Buy a TargetZone
               </div>
               <div className="text-xs text-slate-400">
-                Choose Standard or Precision on the next screen. We’ll refine
-                the offer so fishermen can&apos;t game it.
+                Choose Standard or Precision locations.
               </div>
             </div>
             <div className="text-xs text-sky-200 font-semibold border border-sky-500/60 rounded-full px-3 py-1">

@@ -1,7 +1,7 @@
 {
   "name": "CoFish",
   "short_name": "CoFish",
-  "description": "Post verified fishing catches and earn points",
+  "description": "Earn Fish Locations - Post verified catches to earn points for fishing location data",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f172a",
