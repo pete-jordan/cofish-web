@@ -18,6 +18,15 @@ export const AnalysisCard: React.FC<Props> = ({ analysis }) => {
     <div className="border border-slate-700 bg-slate-900/80 rounded-xl p-3 text-sm space-y-1 mt-4">
       <div className="font-semibold text-slate-200">AI Analysis</div>
 
+      {analysis.species && (
+        <div>
+          Likely Species:{" "}
+          <span className="font-semibold text-purple-400">
+            {analysis.species}
+          </span>
+        </div>
+      )}
+
       <div>
         Alive score:{" "}
         <span className="font-semibold text-emerald-400">

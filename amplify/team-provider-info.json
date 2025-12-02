@@ -21,7 +21,7 @@
       "function": {
         "cofishapplambda": {
           "deploymentBucketName": "amplify-cofishapp-dev-03094-deployment",
-          "s3Key": "amplify-builds/cofishapplambda-4e45624d776651775164-build.zip",
+          "s3Key": "amplify-builds/cofishapplambda-53493862724a525a4153-build.zip",
           "openaiApiKey": "REMOVED_FOR_SECURITY",
           "done": "done"
         },

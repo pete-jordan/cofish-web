@@ -65,7 +65,7 @@ exports.handler = async (event) => {
 
     // Aggregate results
     const aggregated = aggregateFrameResults(frameResults);
-    let { aliveScore, confidence, explanation, fishFingerprint } = aggregated;
+    let { aliveScore, confidence, explanation, fishFingerprint, species } = aggregated;
 
     let fishEmbedding = undefined;
 
@@ -91,6 +91,7 @@ exports.handler = async (event) => {
         explanation,
         fishFingerprint,
         fishEmbedding,
+        species,
       }),
     };
   } catch (err) {
@@ -111,6 +112,7 @@ function aggregateFrameResults(frameResults) {
   const confidences = [];
   const explanations = [];
   const fingerprints = [];
+  const speciesList = [];
 
   for (const result of frameResults) {
     const normalized = normalizeLivenessResult(result);
@@ -122,6 +124,9 @@ function aggregateFrameResults(frameResults) {
     if (normalized.fishFingerprint) {
       fingerprints.push(normalized.fishFingerprint);
     }
+    if (normalized.species) {
+      speciesList.push(normalized.species);
+    }
   }
 
   // Average alive scores and confidences
@@ -129,6 +134,21 @@ function aggregateFrameResults(frameResults) {
     aliveScores.reduce((a, b) => a + b, 0) / aliveScores.length;
   const avgConfidence =
     confidences.reduce((a, b) => a + b, 0) / confidences.length;
+
+  // Use most common species (or first if all different)
+  const speciesCounts = {};
+  for (const s of speciesList) {
+    speciesCounts[s] = (speciesCounts[s] || 0) + 1;
+  }
+  let mostCommonSpecies = "";
+  let maxCount = 0;
+  for (const [s, count] of Object.entries(speciesCounts)) {
+    if (count > maxCount) {
+      maxCount = count;
+      mostCommonSpecies = s;
+    }
+  }
+  const species = mostCommonSpecies || (speciesList.length > 0 ? speciesList[0] : "");
 
   // Use most common fingerprint, or combine them
   const fingerprint =
@@ -147,6 +167,7 @@ function aggregateFrameResults(frameResults) {
     confidence: avgConfidence,
     explanation,
     fishFingerprint: fingerprint,
+    species,
   };
 }
 
@@ -163,7 +184,8 @@ You are analyzing a photo of a fish that comes from a short fishing video.
 Return ONLY JSON (no extra text) with the following keys:
 - "aliveScore": number between 0 and 1 (1 = clearly alive / freshly caught with visible signs like gills moving, eyes clear, body movement, 0 = clearly dead, frozen, or fake).
 - "confidence": number between 0 and 1 for how confident you are in the aliveScore.
-- "fishFingerprint": a short, specific description of the fish's appearance (species guess, colors, patterns, marks, approximate size, distinctive features).
+- "species": the most likely fish species name (e.g., "Striped Bass", "Bluefish", "Flounder"). If uncertain, provide your best guess.
+- "fishFingerprint": a short, specific description of the fish's appearance (colors, patterns, marks, approximate size, distinctive features).
 - "explanation": 1–3 sentences explaining why you chose this aliveScore, noting specific signs of life or death.
 
 Look for signs of life: clear eyes, gill movement, body position, skin texture, fin position, etc.
@@ -173,7 +195,8 @@ Example of the JSON shape:
 {
   "aliveScore": 0.8,
   "confidence": 0.7,
-  "fishFingerprint": "Striped bass, silver body with dark lateral stripes, ~26 inches, small nick in tail fin, distinctive scale pattern on left side.",
+  "species": "Striped Bass",
+  "fishFingerprint": "Silver body with dark lateral stripes, ~26 inches, small nick in tail fin, distinctive scale pattern on left side.",
   "explanation": "Fish shows clear eyes and natural body position consistent with a live catch."
 }
 `;
@@ -261,6 +284,7 @@ function normalizeLivenessResult(openaiResponse) {
   let confidence = 0.5;
   let explanation = "No structured explanation returned.";
   let fishFingerprint = "";
+  let species = "";
 
   try {
     const content = openaiResponse.choices?.[0]?.message?.content;
@@ -297,6 +321,9 @@ function normalizeLivenessResult(openaiResponse) {
     if (typeof parsed.fishFingerprint === "string") {
       fishFingerprint = parsed.fishFingerprint;
     }
+    if (typeof parsed.species === "string") {
+      species = parsed.species;
+    }
 
     // Optional future: if you instruct the model to also provide a short numeric vector in JSON,
     // you can parse it here as parsed.fishEmbedding.
@@ -304,7 +331,7 @@ function normalizeLivenessResult(openaiResponse) {
     console.error("Error parsing OpenAI JSON output:", err);
   }
 
-  return { aliveScore, confidence, explanation, fishFingerprint };
+  return { aliveScore, confidence, explanation, fishFingerprint, species };
 }
 
 function clamp01(x) {

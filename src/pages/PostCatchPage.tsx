@@ -184,11 +184,10 @@ export const PostCatchPage: React.FC = () => {
   };
 
 
-  const startRecording = async () => {
+  const enableCamera = async () => {
     setError(null);
     
-    // Request camera permission first (user gesture required on mobile)
-    // Just try to use getUserMedia directly - no pre-checks (like the working example)
+    // Request camera permission (user gesture required on mobile)
     if (!mediaStreamRef.current || !mediaStreamRef.current.active) {
       try {
         let stream: MediaStream;
@@ -238,6 +237,20 @@ export const PostCatchPage: React.FC = () => {
       }
     }
     
+    // Camera is now enabled
+    setHasCamera(true);
+    setError(null);
+  };
+
+  const startRecording = async () => {
+    setError(null);
+    
+    // Make sure camera is enabled first
+    if (!mediaStreamRef.current || !mediaStreamRef.current.active) {
+      setError("Please enable camera first using the 'Enable Camera' button.");
+      return;
+    }
+    
     // Request location if not available (after camera is working)
     // Don't block recording if location fails - we'll request it again before posting
     if (!location) {
@@ -247,9 +260,6 @@ export const PostCatchPage: React.FC = () => {
         // Don't show error here - we'll check again before posting
       });
     }
-    
-    // If we got here, camera is working - clear any previous errors
-    setError(null);
     
     // Reset only analysis-related state, keep location and camera
     setAnalysis(null);
@@ -412,10 +422,10 @@ export const PostCatchPage: React.FC = () => {
         isUnique,
         reason: verified
           ? undefined
-          : !isAlive
-          ? "Fish does not appear to be alive"
           : !isUnique
           ? "This catch appears to be a duplicate"
+          : !isAlive
+          ? "Fish does not appear to be alive"
           : "Verification failed",
       });
 
@@ -615,11 +625,19 @@ export const PostCatchPage: React.FC = () => {
       </div>
 
       <div className="space-y-2 mb-4">
+        {!hasCamera && (
+          <button
+            onClick={enableCamera}
+            className="w-full rounded-full py-2 text-sm font-semibold bg-blue-600 hover:bg-blue-500"
+          >
+            Enable Camera
+          </button>
+        )}
         <button
-          disabled={recording}
+          disabled={recording || !hasCamera}
           onClick={startRecording}
           className={`w-full rounded-full py-2 text-sm font-semibold ${
-            recording
+            recording || !hasCamera
               ? "bg-slate-700 text-slate-500"
               : "bg-emerald-600 hover:bg-emerald-500"
           }`}
@@ -630,7 +648,7 @@ export const PostCatchPage: React.FC = () => {
         </button>
         {!hasCamera && !recording && (
           <div className="text-[10px] text-slate-500 text-center">
-            Tap to start recording. Camera and location permissions will be requested.
+            Enable camera first to frame your fish, then record.
           </div>
         )}
 

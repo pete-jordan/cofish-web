@@ -8,6 +8,7 @@ export type AliveAnalysisResult = {
   // Optional extras from Lambda
   fishFingerprint?: string;
   fishEmbedding?: number[];
+  species?: string;
 };
 
 const VIDEO_ANALYZE_URL =
@@ -141,7 +142,12 @@ async function captureFrames(
             if (framesCaptured < times.length) {
               captureFrame(times[framesCaptured], framesCaptured);
             } else {
+              URL.revokeObjectURL(video.src);
               cleanup();
+              console.log(`Successfully captured ${frames.length} frames from video`);
+              if (frames.length < frameCount) {
+                console.warn(`Expected ${frameCount} frames but only captured ${frames.length}`);
+              }
               resolve(frames);
             }
           } catch (err) {
@@ -187,11 +193,14 @@ export async function analyzeCatchVideo(
 
   const data = await res.json();
 
+  console.log(`Analyzed ${frames.length} frames`);
+
   return {
     aliveScore: data.aliveScore ?? 0,
     confidence: data.confidence ?? 0,
     explanation: data.explanation ?? "",
     fishFingerprint: data.fishFingerprint,
     fishEmbedding: data.fishEmbedding,
+    species: data.species,
   };
 }
