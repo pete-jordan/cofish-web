@@ -1,10 +1,5 @@
 // amplify/backend/function/cofishapplambda/src/index.js
 
-// Ensure fetch is available (Node.js 18+ has it globally, but adding check for safety)
-if (typeof fetch === 'undefined') {
-  console.error("ERROR: fetch is not available in this runtime");
-}
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Content-Type",

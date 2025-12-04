@@ -33,6 +33,7 @@ export const PostCatchPage: React.FC = () => {
 
   const [hasCamera, setHasCamera] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [recordingCountdown, setRecordingCountdown] = useState(6);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);
 
   const [uploading, setUploading] = useState(false);
@@ -82,6 +83,25 @@ export const PostCatchPage: React.FC = () => {
       }
     };
   }, []);
+
+  // Countdown timer for recording
+  useEffect(() => {
+    if (!recording) {
+      setRecordingCountdown(6);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setRecordingCountdown((prev) => {
+        if (prev <= 1) {
+          return 6; // Reset when done
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [recording]);
 
   // Don't auto-request location on mount (mobile requires user gesture)
   // User will click button to request location
@@ -643,7 +663,7 @@ export const PostCatchPage: React.FC = () => {
           }`}
         >
           {recording 
-            ? "Recording 6 seconds…" 
+            ? `Recording… ${recordingCountdown}s` 
             : "Record 6-second clip"}
         </button>
         {!hasCamera && !recording && (
