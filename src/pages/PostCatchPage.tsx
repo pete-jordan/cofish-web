@@ -203,7 +203,6 @@ export const PostCatchPage: React.FC = () => {
     }
   };
 
-
   const enableCamera = async () => {
     setError(null);
     
@@ -564,68 +563,6 @@ export const PostCatchPage: React.FC = () => {
         </div>
       )}
 
-      {/* Location Status - Only show errors or when location is captured */}
-      {requestingLocation && (
-        <div className="mb-3 text-xs text-slate-400 border border-slate-700 bg-slate-900/80 rounded-lg px-3 py-2">
-          Requesting location... Please allow location access when prompted.
-        </div>
-      )}
-      {location && !postSuccess && (
-        <div className="mb-3 text-xs text-emerald-400 border border-emerald-700/60 bg-emerald-950/40 rounded-lg px-3 py-2">
-          ✓ Location captured ({location.lat.toFixed(4)}, {location.lng.toFixed(4)})
-        </div>
-      )}
-      {locationError && (
-        <div className="mb-3 text-xs text-rose-400 border border-rose-700/60 bg-rose-950/40 rounded-lg px-3 py-2 space-y-2">
-          <div>{locationError}</div>
-          <button
-            onClick={requestLocation}
-            className="w-full rounded-full bg-rose-600 hover:bg-rose-500 py-2 text-sm font-semibold mt-2"
-          >
-            Try Again
-          </button>
-          {showManualLocation && (
-            <div className="mt-3 pt-3 border-t border-rose-700/60">
-              <div className="text-xs text-slate-300 mb-2">
-                Development Mode: Enter location manually for testing
-              </div>
-              <div className="space-y-2">
-                <input
-                  type="number"
-                  step="any"
-                  placeholder="Latitude (e.g., 41.1234)"
-                  value={manualLat}
-                  onChange={(e) => setManualLat(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200"
-                />
-                <input
-                  type="number"
-                  step="any"
-                  placeholder="Longitude (e.g., -71.5678)"
-                  value={manualLng}
-                  onChange={(e) => setManualLng(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200"
-                />
-                <button
-                  onClick={handleManualLocationSubmit}
-                  className="w-full rounded-full bg-slate-600 hover:bg-slate-500 py-2 text-sm font-semibold"
-                >
-                  Use Manual Location
-                </button>
-              </div>
-            </div>
-          )}
-          <div className="text-[10px] text-slate-500 mt-2">
-            <div className="font-semibold mb-1">Troubleshooting:</div>
-            <div>• Test in a real browser (Chrome, Safari, Firefox) - IDE browsers may not support location</div>
-            <div>• Must be HTTPS or localhost (not file://)</div>
-            <div>• iOS Safari: Settings → Safari → Location Services → Allow</div>
-            <div>• Android Chrome: Tap lock icon → Permissions → Location → Allow</div>
-            <div>• Make sure GPS/Location is enabled in device settings</div>
-          </div>
-        </div>
-      )}
-
       <div className="mb-4">
         <div className="rounded-xl overflow-hidden border border-sky-700 bg-slate-900 h-64 flex items-center justify-center relative">
           <video
@@ -694,7 +631,7 @@ export const PostCatchPage: React.FC = () => {
             ? uploadStatus || "Uploading…"
             : analyzing
             ? uploadStatus || "Analyzing…"
-            : "Verify New & Unique Catch"}
+            : "Upload Catch"}
         </button>
 
         {uploadStatus && !uploading && !analyzing && (
