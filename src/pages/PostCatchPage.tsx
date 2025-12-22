@@ -61,11 +61,6 @@ export const PostCatchPage: React.FC = () => {
     }
     return null;
   });
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [requestingLocation, setRequestingLocation] = useState(false);
-  const [showManualLocation, setShowManualLocation] = useState(false);
-  const [manualLat, setManualLat] = useState("");
-  const [manualLng, setManualLng] = useState("");
 
   const [posting, setPosting] = useState(false);
   const [postSuccess, setPostSuccess] = useState(false);
@@ -107,15 +102,8 @@ export const PostCatchPage: React.FC = () => {
   // User will click button to request location
 
   const requestLocation = async () => {
-    setRequestingLocation(true);
-    setLocationError(null);
-
     if (!navigator.geolocation) {
-      setLocationError(
-        "Geolocation is not supported by your browser. Please use a modern browser like Chrome, Safari, or Firefox."
-      );
-      setRequestingLocation(false);
-      return;
+      throw new Error("Geolocation is not supported by your browser. Please use a modern browser like Chrome, Safari, or Firefox.");
     }
 
     // Check if we're in a restricted environment (like IDE browser)
@@ -145,7 +133,6 @@ export const PostCatchPage: React.FC = () => {
         lng: position.coords.longitude,
       };
       setLocation(newLocation);
-      setLocationError(null); // Clear any previous errors
       // Persist location to localStorage
       try {
         localStorage.setItem("cofish_last_location", JSON.stringify(newLocation));
@@ -167,39 +154,7 @@ export const PostCatchPage: React.FC = () => {
         errorMessage = "Location request timed out. Please try again.";
       }
       
-      setLocationError(errorMessage);
-      // In development, offer manual entry as fallback
-      if (import.meta.env.DEV) {
-        setShowManualLocation(true);
-      }
-    } finally {
-      setRequestingLocation(false);
-    }
-  };
-
-  const handleManualLocationSubmit = () => {
-    const lat = parseFloat(manualLat);
-    const lng = parseFloat(manualLng);
-    
-    if (isNaN(lat) || isNaN(lng)) {
-      setLocationError("Please enter valid latitude and longitude numbers.");
-      return;
-    }
-    
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      setLocationError("Latitude must be between -90 and 90. Longitude must be between -180 and 180.");
-      return;
-    }
-    
-    const newLocation = { lat, lng };
-    setLocation(newLocation);
-    setLocationError(null);
-    setShowManualLocation(false);
-    // Persist location to localStorage
-    try {
-      localStorage.setItem("cofish_last_location", JSON.stringify(newLocation));
-    } catch {
-      // ignore if localStorage fails
+      throw new Error(errorMessage);
     }
   };
 
