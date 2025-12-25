@@ -586,7 +586,7 @@ export const PostCatchPage: React.FC = () => {
             ? uploadStatus || "Uploading…"
             : analyzing
             ? uploadStatus || "Analyzing…"
-            : "Upload Catch"}
+            : "Post Catch"}
         </button>
 
         {uploadStatus && !uploading && !analyzing && (
