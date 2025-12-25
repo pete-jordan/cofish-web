@@ -428,8 +428,8 @@ export const TargetZonesPage: React.FC = () => {
                 center={[c.lat, c.lng]}
                 radius={obfuscationRadiusMeters}
                 pathOptions={{
-                  color: "#ef4444",
-                  fillColor: "#ef4444",
+                  color: "#fbbf24",
+                  fillColor: "#fbbf24",
                   // Precision: ~50% more opaque to preserve perceived density
                   fillOpacity: precisionUnlocked ? 0.42 : 0.28,
                   weight: 0, // no outline
