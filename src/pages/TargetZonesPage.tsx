@@ -16,7 +16,7 @@ type ActivityBucket = "NONE" | "SOME" | "GOOD" | "HIGH";
 
 const CENTER_STORAGE_KEY = "cofish_targetzones_center";
 const PREVIEW_STORAGE_PREFIX = "cofish_targetzones_previews_";
-const MAX_PREVIEWS = 3;
+const MAX_PREVIEWS = 20; // Increased for debugging
 
 // Helper to get YYYY-MM-DD for preview tracking
 function getTodayKey() {
@@ -89,7 +89,7 @@ export const TargetZonesPage: React.FC = () => {
   const [centerLat, setCenterLat] = useState(41.0);
   const [centerLng, setCenterLng] = useState(-71.0);
 
-  // --- Previews (limit 3 per day, persisted) ---
+  // --- Previews (limit 20 per day for debugging, persisted) ---
   const [previewsUsed, setPreviewsUsed] = useState(0);
 
   // --- Activity results ---
