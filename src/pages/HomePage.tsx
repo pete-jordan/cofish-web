@@ -168,7 +168,7 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
             <div className="text-xs text-slate-400 border border-slate-600 rounded-full px-3 py-1">
-              Ledger
+              View
             </div>
           </div>
         </button>
