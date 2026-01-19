@@ -364,36 +364,65 @@ export const PostCatchPage: React.FC = () => {
       console.log("Starting upload process, video size:", videoBlob.size, "type:", contentType);
 
       // 1) presigned URL
-      console.log("Requesting upload URL...");
+      const apiEndpoint = import.meta.env.VITE_GET_UPLOAD_URL || "https://kq9ik7tn65.execute-api.us-east-1.amazonaws.com/dev/getUploadUrl";
+      console.log("Requesting upload URL from API endpoint:", apiEndpoint);
       const { uploadUrl, catchId: newCatchId, s3Key } =
         await initCatchUpload(contentType);
-      console.log("Upload URL received, catchId:", newCatchId, "s3Key:", s3Key);
+      console.log("✅ Upload URL received successfully");
+      console.log("CatchId:", newCatchId);
+      console.log("S3Key:", s3Key);
+      console.log("Presigned URL length:", uploadUrl?.length || 0);
+      // Log first 100 chars of URL for debugging (contains bucket/region info)
+      if (uploadUrl) {
+        try {
+          const urlObj = new URL(uploadUrl);
+          console.log("Presigned URL domain:", urlObj.hostname);
+          console.log("Presigned URL path preview:", urlObj.pathname.substring(0, 80) + "...");
+          console.log("Presigned URL has query params:", urlObj.search ? "Yes" : "No");
+        } catch (urlParseError) {
+          console.error("Failed to parse presigned URL:", urlParseError);
+        }
+      }
 
       setCatchId(newCatchId);
       setUploadStatus("Uploading video to CoFish…");
 
       // 2) upload to S3
-      console.log("Uploading video blob to S3, size:", videoBlob.size);
-      // Log URL domain for debugging (not full URL for security)
+      console.log("📤 Starting S3 upload...");
+      console.log("Video blob size:", videoBlob.size, "bytes (", Math.round(videoBlob.size / 1024), "KB)");
+      console.log("Video blob type:", videoBlob.type);
+      console.log("Content-Type header:", contentType);
+      
+      // Validate presigned URL
+      let s3Hostname = "";
       try {
         const urlObj = new URL(uploadUrl);
-        console.log("Upload URL domain:", urlObj.hostname, "path:", urlObj.pathname.substring(0, 50) + "...");
-        console.log("Video blob type:", videoBlob.type, "size bytes:", videoBlob.size);
-        console.log("Content-Type header:", contentType);
+        s3Hostname = urlObj.hostname;
+        console.log("S3 upload URL domain:", s3Hostname);
+        console.log("S3 upload URL path:", urlObj.pathname.substring(0, 60) + "...");
+        if (!s3Hostname.includes("s3") && !s3Hostname.includes("amazonaws")) {
+          console.warn("⚠️ Presigned URL doesn't look like an S3 URL. Hostname:", s3Hostname);
+        }
       } catch (urlError) {
-        console.error("Invalid upload URL:", urlError);
-        throw new Error(`Invalid upload URL received from server: ${urlError}`);
+        console.error("❌ Invalid upload URL format:", urlError);
+        throw new Error(`Invalid upload URL received from server. The presigned URL appears to be malformed.`);
       }
       
       // Validate video blob
       if (!videoBlob || videoBlob.size === 0) {
-        throw new Error("Video blob is empty or invalid");
+        throw new Error("Video blob is empty or invalid. Please record a video first.");
       }
       
+      if (videoBlob.size > 100 * 1024 * 1024) { // 100MB limit
+        console.warn("⚠️ Video is very large:", Math.round(videoBlob.size / 1024 / 1024), "MB");
+      }
+      
+      console.log("🚀 Sending PUT request to S3...");
       let putRes;
       try {
         // For presigned URLs, we must match the exact Content-Type that was signed
         // Don't include any other headers that weren't part of the signature
+        const startTime = Date.now();
         putRes = await fetch(uploadUrl, {
           method: "PUT",
           body: videoBlob,
@@ -403,7 +432,11 @@ export const PostCatchPage: React.FC = () => {
           // Add signal for timeout handling
           signal: AbortSignal.timeout(60000), // 60 second timeout
         });
-        console.log("Upload fetch completed, status:", putRes.status, "ok:", putRes.ok);
+        const uploadTime = Date.now() - startTime;
+        console.log("✅ Upload fetch completed");
+        console.log("Upload duration:", uploadTime, "ms");
+        console.log("Response status:", putRes.status);
+        console.log("Response ok:", putRes.ok);
       } catch (fetchError: any) {
         console.error("Upload fetch error:", fetchError);
         console.error("Error details:", {
