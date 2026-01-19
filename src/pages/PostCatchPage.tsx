@@ -433,22 +433,39 @@ export const PostCatchPage: React.FC = () => {
           signal: AbortSignal.timeout(60000), // 60 second timeout
         });
         const uploadTime = Date.now() - startTime;
-        console.log("✅ Upload fetch completed");
+        console.log("📡 Upload fetch completed");
         console.log("Upload duration:", uploadTime, "ms");
         console.log("Response status:", putRes.status);
         console.log("Response ok:", putRes.ok);
+        console.log("Response headers:", Object.fromEntries(putRes.headers.entries()));
       } catch (fetchError: any) {
-        console.error("Upload fetch error:", fetchError);
+        console.error("❌ Upload fetch error:", fetchError);
         console.error("Error details:", {
           name: fetchError?.name,
           message: fetchError?.message,
           stack: fetchError?.stack,
+          cause: fetchError?.cause,
         });
+        
+        // Check if it's a CORS error specifically
         const errorMessage = fetchError?.message || String(fetchError);
-        if (errorMessage.includes("Failed to fetch") || errorMessage.includes("NetworkError") || errorMessage.includes("Load Failed")) {
-          throw new Error(`Network error during upload. Please check your internet connection and try again. Details: ${errorMessage}`);
-        } else if (errorMessage.includes("CORS")) {
-          throw new Error(`CORS error during upload. Please contact support. Details: ${errorMessage}`);
+        const errorName = fetchError?.name || "";
+        
+        // CORS errors typically show up as "Failed to fetch" or "NetworkError" 
+        // but the real issue is CORS blocking the request
+        if (errorMessage.includes("Failed to fetch") || 
+            errorMessage.includes("NetworkError") || 
+            errorMessage.includes("Load Failed") ||
+            errorName === "TypeError") {
+          // This is likely a CORS issue - the browser blocks the request before it reaches S3
+          throw new Error(
+            `S3 upload failed: CORS configuration issue. ` +
+            `The S3 bucket may be missing CORS configuration allowing PUT requests from your origin. ` +
+            `Error: ${errorMessage}. ` +
+            `Please check S3 bucket CORS settings or contact support.`
+          );
+        } else if (errorMessage.includes("CORS") || errorMessage.includes("cors")) {
+          throw new Error(`CORS error during upload: ${errorMessage}`);
         } else {
           throw new Error(`Upload failed: ${errorMessage}`);
         }
@@ -456,12 +473,36 @@ export const PostCatchPage: React.FC = () => {
 
       if (!putRes.ok) {
         let errorText = "";
+        let errorXml = "";
         try {
           errorText = await putRes.text();
-          console.error("Upload failed response body:", errorText);
+          errorXml = errorText;
+          console.error("❌ Upload failed response body:", errorText);
+          
+          // Try to parse XML error response from S3
+          if (errorText.includes("<?xml")) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(errorText, "text/xml");
+            const code = xmlDoc.querySelector("Code")?.textContent;
+            const message = xmlDoc.querySelector("Message")?.textContent;
+            if (code || message) {
+              console.error("S3 Error Code:", code);
+              console.error("S3 Error Message:", message);
+              errorText = `S3 Error: ${code || "Unknown"} - ${message || errorText}`;
+            }
+          }
         } catch (e) {
           errorText = `Could not read error response (status ${putRes.status})`;
         }
+        
+        // Check for CORS-related status codes
+        if (putRes.status === 403) {
+          throw new Error(
+            `Upload forbidden (403). This may be a CORS or permissions issue. ` +
+            `S3 response: ${errorText || "No error details"}`
+          );
+        }
+        
         throw new Error(`Upload failed with status ${putRes.status}: ${errorText || "Unknown error"}`);
       }
       console.log("Video upload successful");
