@@ -374,14 +374,34 @@ export const PostCatchPage: React.FC = () => {
 
       // 2) upload to S3
       console.log("Uploading video blob to S3, size:", videoBlob.size);
+      // Log URL domain for debugging (not full URL for security)
+      try {
+        const urlObj = new URL(uploadUrl);
+        console.log("Upload URL domain:", urlObj.hostname, "path:", urlObj.pathname.substring(0, 50) + "...");
+        console.log("Video blob type:", videoBlob.type, "size bytes:", videoBlob.size);
+        console.log("Content-Type header:", contentType);
+      } catch (urlError) {
+        console.error("Invalid upload URL:", urlError);
+        throw new Error(`Invalid upload URL received from server: ${urlError}`);
+      }
+      
+      // Validate video blob
+      if (!videoBlob || videoBlob.size === 0) {
+        throw new Error("Video blob is empty or invalid");
+      }
+      
       let putRes;
       try {
+        // For presigned URLs, we must match the exact Content-Type that was signed
+        // Don't include any other headers that weren't part of the signature
         putRes = await fetch(uploadUrl, {
           method: "PUT",
           body: videoBlob,
           headers: {
             "Content-Type": contentType,
           },
+          // Add signal for timeout handling
+          signal: AbortSignal.timeout(60000), // 60 second timeout
         });
         console.log("Upload fetch completed, status:", putRes.status, "ok:", putRes.ok);
       } catch (fetchError: any) {
