@@ -22,20 +22,46 @@ const GET_UPLOAD_URL =
 export async function initCatchUpload(
   contentType: string
 ): Promise<CatchUploadInitResponse> {
-  const res = await fetch(GET_UPLOAD_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ contentType }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`initCatchUpload failed: ${res.status} ${text}`);
+  let res;
+  try {
+    res = await fetch(GET_UPLOAD_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ contentType }),
+    });
+  } catch (fetchError: any) {
+    console.error("initCatchUpload fetch error:", fetchError);
+    const errorMessage = fetchError?.message || String(fetchError);
+    if (errorMessage.includes("Failed to fetch") || errorMessage.includes("NetworkError") || errorMessage.includes("Load Failed")) {
+      throw new Error(`Network error requesting upload URL. Please check your internet connection and try again. Details: ${errorMessage}`);
+    } else {
+      throw new Error(`Failed to request upload URL: ${errorMessage}`);
+    }
   }
 
-  const data = await res.json();
+  if (!res.ok) {
+    let errorText = "";
+    try {
+      errorText = await res.text();
+    } catch (e) {
+      errorText = `Could not read error response (status ${res.status})`;
+    }
+    throw new Error(`initCatchUpload failed with status ${res.status}: ${errorText || "Unknown error"}`);
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (jsonError: any) {
+    throw new Error(`Invalid response from upload URL service: ${jsonError?.message || "Could not parse JSON"}`);
+  }
+
+  if (!data.uploadUrl || !data.catchId || !data.s3Key) {
+    throw new Error(`Invalid response from upload URL service: missing required fields. Received: ${JSON.stringify(data)}`);
+  }
+
   return {
     uploadUrl: data.uploadUrl,
     catchId: data.catchId,

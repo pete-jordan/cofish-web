@@ -45,6 +45,47 @@ export const PostCatchPage: React.FC = () => {
   const [verificationResult, setVerificationResult] =
     useState<VerificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [debugLogs, setDebugLogs] = useState<Array<{ time: string; level: string; message: string }>>([]);
+  const [showDebugConsole, setShowDebugConsole] = useState(false);
+
+  // Capture console errors and logs for mobile debugging
+  useEffect(() => {
+    const originalError = console.error;
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+
+    const addLog = (level: string, ...args: any[]) => {
+      const message = args.map(arg => 
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      setDebugLogs(prev => [...prev.slice(-19), { // Keep last 20 logs
+        time: new Date().toLocaleTimeString(),
+        level,
+        message
+      }]);
+    };
+
+    console.error = (...args: any[]) => {
+      originalError(...args);
+      addLog('error', ...args);
+    };
+
+    console.log = (...args: any[]) => {
+      originalLog(...args);
+      addLog('log', ...args);
+    };
+
+    console.warn = (...args: any[]) => {
+      originalWarn(...args);
+      addLog('warn', ...args);
+    };
+
+    return () => {
+      console.error = originalError;
+      console.log = originalLog;
+      console.warn = originalWarn;
+    };
+  }, []);
 
   // Load location from localStorage on mount
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(() => {
@@ -320,27 +361,57 @@ export const PostCatchPage: React.FC = () => {
 
     try {
       const contentType = videoBlob.type || "video/webm";
+      console.log("Starting upload process, video size:", videoBlob.size, "type:", contentType);
 
       // 1) presigned URL
+      console.log("Requesting upload URL...");
       const { uploadUrl, catchId: newCatchId, s3Key } =
         await initCatchUpload(contentType);
+      console.log("Upload URL received, catchId:", newCatchId, "s3Key:", s3Key);
 
       setCatchId(newCatchId);
       setUploadStatus("Uploading video to CoFish…");
 
       // 2) upload to S3
-      const putRes = await fetch(uploadUrl, {
-        method: "PUT",
-        body: videoBlob,
-        headers: {
-          "Content-Type": contentType,
-        },
-      });
+      console.log("Uploading video blob to S3, size:", videoBlob.size);
+      let putRes;
+      try {
+        putRes = await fetch(uploadUrl, {
+          method: "PUT",
+          body: videoBlob,
+          headers: {
+            "Content-Type": contentType,
+          },
+        });
+        console.log("Upload fetch completed, status:", putRes.status, "ok:", putRes.ok);
+      } catch (fetchError: any) {
+        console.error("Upload fetch error:", fetchError);
+        console.error("Error details:", {
+          name: fetchError?.name,
+          message: fetchError?.message,
+          stack: fetchError?.stack,
+        });
+        const errorMessage = fetchError?.message || String(fetchError);
+        if (errorMessage.includes("Failed to fetch") || errorMessage.includes("NetworkError") || errorMessage.includes("Load Failed")) {
+          throw new Error(`Network error during upload. Please check your internet connection and try again. Details: ${errorMessage}`);
+        } else if (errorMessage.includes("CORS")) {
+          throw new Error(`CORS error during upload. Please contact support. Details: ${errorMessage}`);
+        } else {
+          throw new Error(`Upload failed: ${errorMessage}`);
+        }
+      }
 
       if (!putRes.ok) {
-        const text = await putRes.text();
-        throw new Error(`Upload failed: ${putRes.status} ${text}`);
+        let errorText = "";
+        try {
+          errorText = await putRes.text();
+          console.error("Upload failed response body:", errorText);
+        } catch (e) {
+          errorText = `Could not read error response (status ${putRes.status})`;
+        }
+        throw new Error(`Upload failed with status ${putRes.status}: ${errorText || "Unknown error"}`);
       }
+      console.log("Video upload successful");
 
       setUploadStatus("Upload complete. Creating catch record…");
 
@@ -599,6 +670,50 @@ export const PostCatchPage: React.FC = () => {
           {error}
         </div>
       )}
+
+      {/* Debug Console for Mobile */}
+      <div className="mb-3">
+        <button
+          onClick={() => setShowDebugConsole(!showDebugConsole)}
+          className="w-full text-xs text-slate-400 hover:text-slate-200 border border-slate-700 rounded-lg px-2 py-1 bg-slate-900/50"
+        >
+          {showDebugConsole ? '▼' : '▶'} Debug Console {debugLogs.length > 0 && `(${debugLogs.length})`}
+        </button>
+        {showDebugConsole && (
+          <div className="mt-2 border border-slate-700 bg-slate-900/90 rounded-lg p-2 max-h-64 overflow-y-auto">
+            {debugLogs.length === 0 ? (
+              <div className="text-xs text-slate-500">No logs yet...</div>
+            ) : (
+              <div className="space-y-1 text-[10px] font-mono">
+                {debugLogs.map((log, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-1 rounded ${
+                      log.level === 'error'
+                        ? 'bg-rose-950/40 text-rose-300'
+                        : log.level === 'warn'
+                        ? 'bg-yellow-950/40 text-yellow-300'
+                        : 'bg-slate-800/40 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="text-slate-500 flex-shrink-0">{log.time}</span>
+                      <span className="text-slate-400 flex-shrink-0">[{log.level}]</span>
+                      <span className="break-all">{log.message}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <button
+              onClick={() => setDebugLogs([])}
+              className="mt-2 text-xs text-slate-400 hover:text-slate-200"
+            >
+              Clear logs
+            </button>
+          </div>
+        )}
+      </div>
 
       <AnalysisCard analysis={analysis} />
 
