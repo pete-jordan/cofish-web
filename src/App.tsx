@@ -8,18 +8,29 @@ import { TargetZonesPage } from "./pages/TargetZonesPage";
 import { VideoTestPage } from "./pages/VideoTestPage";
 import { PostCatchPage } from "./pages/PostCatchPage";
 import { seedDummyCatches } from "./utils/seedCatches";
+import { deleteAllData, resetUserPoints } from "./utils/deleteAllData";
+import { debugCatch } from "./utils/debugCatch";
 
 
 const App: React.FC = () => {
-  // Expose seed function to browser console for testing
+  // Expose utility functions to browser console for testing
   useEffect(() => {
     (window as any).seedDummyCatches = seedDummyCatches;
+    (window as any).deleteAllData = deleteAllData;
+    (window as any).resetUserPoints = resetUserPoints;
+    (window as any).debugCatch = debugCatch;
     console.log(
-      "%c✅ seedDummyCatches available in console!",
+      "%c✅ Utility functions available in console!",
       "color: green; font-weight: bold;"
     );
     console.log(
       "Usage: await seedDummyCatches({ email: 'petejordan63@gmail.com', centerLat: 41.1720, centerLng: -71.5778, count: 30, radiusMiles: 15 })"
+    );
+    console.log(
+      "Usage: await deleteAllData() - Deletes all Catches, InfoPurchases, and KarmaEvents"
+    );
+    console.log(
+      "Usage: await resetUserPoints() - Resets current user's points balance to 0"
     );
   }, []);
   return (

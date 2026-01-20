@@ -531,12 +531,20 @@ export const PostCatchPage: React.FC = () => {
       // 3) Create and upload thumbnail
       let thumbnailKey: string | null = null;
       try {
+        console.log("📸 Starting thumbnail creation for catch:", newCatchId);
         const { captureThumbnailFrame, uploadThumbnail } = await import("../api/thumbnailApi");
+        
+        console.log("📸 Capturing thumbnail frame from video...");
         const thumbnailBlob = await captureThumbnailFrame(videoBlob);
+        console.log("📸 Thumbnail frame captured, size:", thumbnailBlob.size, "bytes");
+        
+        console.log("📸 Uploading thumbnail to S3...");
         thumbnailKey = await uploadThumbnail(newCatchId, thumbnailBlob);
-        console.log("Thumbnail uploaded successfully:", thumbnailKey);
+        console.log("✅ Thumbnail uploaded successfully! Key:", thumbnailKey);
       } catch (thumbnailError: any) {
-        console.warn("Thumbnail creation/upload failed (non-fatal):", thumbnailError);
+        console.error("❌ Thumbnail creation/upload failed:", thumbnailError);
+        console.error("   Error message:", thumbnailError?.message);
+        console.error("   Error stack:", thumbnailError?.stack);
         // Continue without thumbnail - it's not critical
       }
 

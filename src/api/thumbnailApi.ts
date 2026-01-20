@@ -88,6 +88,7 @@ async function getThumbnailUploadUrl(
     import.meta.env.VITE_GET_UPLOAD_URL ||
     "https://kq9ik7tn65.execute-api.us-east-1.amazonaws.com/dev/getUploadUrl";
 
+  console.log("📸 Requesting thumbnail upload URL for catchId:", catchId);
   const res = await fetch(GET_UPLOAD_URL, {
     method: "POST",
     headers: {
@@ -102,13 +103,16 @@ async function getThumbnailUploadUrl(
 
   if (!res.ok) {
     const text = await res.text();
+    console.error("❌ getThumbnailUploadUrl failed:", res.status, text);
     throw new Error(`getThumbnailUploadUrl failed: ${res.status} ${text}`);
   }
 
   const data = await res.json();
+  console.log("📸 Received upload URL response:", data);
   
   // Backend should return thumbnailKey, but fallback if it doesn't
   const thumbnailKey = data.thumbnailKey || data.s3Key || `catches/${catchId}_thumb.jpg`;
+  console.log("📸 Using thumbnail key:", thumbnailKey);
 
   return {
     uploadUrl: data.uploadUrl,
@@ -130,6 +134,9 @@ export async function uploadThumbnail(
   );
 
   // 2) Upload thumbnail to S3
+  console.log("📸 Uploading thumbnail blob to S3, size:", thumbnailBlob.size, "bytes");
+  console.log("📸 Upload URL:", uploadUrl.substring(0, 100) + "...");
+  
   const putRes = await fetch(uploadUrl, {
     method: "PUT",
     body: thumbnailBlob,
@@ -145,8 +152,10 @@ export async function uploadThumbnail(
     } catch (e) {
       errorText = `Could not read error response (status ${putRes.status})`;
     }
+    console.error("❌ Thumbnail S3 upload failed:", putRes.status, errorText);
     throw new Error(`Thumbnail upload failed: ${putRes.status} ${errorText}`);
   }
 
+  console.log("✅ Thumbnail S3 upload successful!");
   return thumbnailKey;
 }
