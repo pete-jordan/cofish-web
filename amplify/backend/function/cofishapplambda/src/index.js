@@ -1,5 +1,6 @@
 // amplify/backend/function/cofishapplambda/src/index.js
 // Updated: API key configuration
+// Force redeploy to pick up updated API key from team-provider-info.json
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

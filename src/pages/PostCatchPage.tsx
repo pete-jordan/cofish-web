@@ -533,10 +533,8 @@ export const PostCatchPage: React.FC = () => {
 
       if (!putRes.ok) {
         let errorText = "";
-        let errorXml = "";
         try {
           errorText = await putRes.text();
-          errorXml = errorText;
           console.error("❌ Upload failed response body:", errorText);
           
           // Try to parse XML error response from S3

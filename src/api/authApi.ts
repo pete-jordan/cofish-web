@@ -285,7 +285,6 @@ export async function purchaseTargetZone({
 
   const createPurchaseMutation = (mutations as any).createInfoPurchase;
   const updateUserMutation = (mutations as any).updateUser;
-  const listCatchesQuery = (queries as any).listCatches;
 
   if (!createPurchaseMutation) {
     throw new Error("createInfoPurchase mutation not found");
