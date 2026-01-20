@@ -23,9 +23,29 @@ type CatchDetailsModalProps = {
     lat?: number | null;
     lng?: number | null;
     thumbnailKey?: string | null;
+    videoKey?: string | null;
   };
   onClose: () => void;
 };
+
+// Helper function to get thumbnail URL (same as in PointsHistoryPage)
+function getThumbnailUrl(thumbnailKey: string | null | undefined, videoKey?: string | null): string | null {
+  if (thumbnailKey) {
+    if (thumbnailKey.startsWith("http://") || thumbnailKey.startsWith("https://")) {
+      return thumbnailKey;
+    }
+    const bucketName = import.meta.env.VITE_S3_BUCKET_NAME || "amplify-cofishapp-dev-03094-storage-cofishstorage";
+    const region = import.meta.env.VITE_AWS_REGION || "us-east-1";
+    return `https://${bucketName}.s3.${region}.amazonaws.com/${thumbnailKey}`;
+  }
+  if (videoKey) {
+    const bucketName = import.meta.env.VITE_S3_BUCKET_NAME || "amplify-cofishapp-dev-03094-storage-cofishstorage";
+    const region = import.meta.env.VITE_AWS_REGION || "us-east-1";
+    const videoKeyWithoutExt = videoKey.replace(/\.(mp4|webm|mov)$/i, "");
+    return `https://${bucketName}.s3.${region}.amazonaws.com/${videoKeyWithoutExt}_thumb.jpg`;
+  }
+  return null;
+}
 
 export const CatchDetailsModal: React.FC<CatchDetailsModalProps> = ({
   entry,
@@ -33,6 +53,7 @@ export const CatchDetailsModal: React.FC<CatchDetailsModalProps> = ({
 }) => {
   const date = new Date(entry.createdAt);
   const hasLocation = entry.lat != null && entry.lng != null;
+  const thumbnailUrl = getThumbnailUrl(entry.thumbnailKey, entry.videoKey);
 
   // Determine zoom level - zoom out enough to show land/context
   // For ocean locations, we want to zoom out to show nearby land
@@ -60,6 +81,27 @@ export const CatchDetailsModal: React.FC<CatchDetailsModalProps> = ({
 
         {/* Content */}
         <div className="p-4 space-y-4">
+          {/* Thumbnail Image */}
+          {thumbnailUrl && (
+            <div>
+              <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">
+                Catch Photo
+              </div>
+              <div className="rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
+                <img
+                  src={thumbnailUrl}
+                  alt="Catch thumbnail"
+                  className="w-full h-auto max-h-64 object-cover"
+                  onError={(e) => {
+                    // Hide image if it fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = "none";
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Species */}
           {entry.species && (
             <div>
@@ -100,7 +142,7 @@ export const CatchDetailsModal: React.FC<CatchDetailsModalProps> = ({
               <div className="text-xs text-slate-500 uppercase tracking-wide mb-2">
                 Location
               </div>
-              <div className="h-64 rounded-lg overflow-hidden border border-slate-700">
+              <div className="h-48 rounded-lg overflow-hidden border border-slate-700">
                 <MapContainer
                   center={[entry.lat!, entry.lng!]}
                   zoom={zoomLevel}

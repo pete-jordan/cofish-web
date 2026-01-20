@@ -38,6 +38,7 @@ export type LedgerEntry = {
   newBalance: number;  // balance AFTER this entry
   // Catch-specific fields (only present for CATCH type)
   thumbnailKey?: string | null;
+  videoKey?: string | null;
   species?: string | null;
   lat?: number | null;
   lng?: number | null;
@@ -862,6 +863,7 @@ export async function getUserLedger(): Promise<{
     deltaPoints: number;
     // Catch-specific fields (only present for CATCH type)
     thumbnailKey?: string | null;
+    videoKey?: string | null;
     species?: string | null;
     lat?: number | null;
     lng?: number | null;
@@ -891,6 +893,7 @@ export async function getUserLedger(): Promise<{
       karmaPoints,
       deltaPoints: total,
       thumbnailKey: c.thumbnailKey,
+      videoKey: c.videoKey,
       species: c.species,
       lat: c.lat,
       lng: c.lng,
@@ -943,6 +946,7 @@ export async function getUserLedger(): Promise<{
       // Include catch-specific fields if this is a catch
       ...(ev.type === "CATCH" && {
         thumbnailKey: (ev as any).thumbnailKey,
+        videoKey: (ev as any).videoKey,
         species: (ev as any).species,
         lat: (ev as any).lat,
         lng: (ev as any).lng,
