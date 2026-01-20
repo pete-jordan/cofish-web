@@ -182,50 +182,51 @@ export const HomePage: React.FC = () => {
           </div>
         </button>
 
-        {/* Test Mode Toggle */}
-        <div className="mt-6 pt-4 border-t border-slate-800">
-          <button
-            onClick={() => {
-              const newValue = !testMode;
-              setTestMode(newValue);
-              try {
-                localStorage.setItem(TEST_MODE_STORAGE_KEY, String(newValue));
-              } catch {
-                // ignore
-              }
-            }}
-            className={`w-full rounded-xl px-4 py-3 text-left border ${
-              testMode
-                ? "border-yellow-600/60 bg-yellow-950/20"
-                : "border-slate-700 bg-slate-900/50"
-            }`}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
-                  Test Mode
-                </div>
-                <div className="text-xs text-slate-400 mt-1">
-                  {testMode
-                    ? "Enabled - Shows debug info and location picker"
-                    : "Disabled - Normal operation"}
-                </div>
+      </main>
+
+      {/* Test Mode Toggle - Fixed to bottom */}
+      <div className="fixed bottom-0 left-0 right-0 bg-slate-950 border-t border-slate-800 px-4 py-3 z-50">
+        <button
+          onClick={() => {
+            const newValue = !testMode;
+            setTestMode(newValue);
+            try {
+              localStorage.setItem(TEST_MODE_STORAGE_KEY, String(newValue));
+            } catch {
+              // ignore
+            }
+          }}
+          className={`w-full rounded-xl px-4 py-3 text-left border ${
+            testMode
+              ? "border-yellow-600/60 bg-yellow-950/20"
+              : "border-slate-700 bg-slate-900/50"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs font-semibold text-slate-300 uppercase tracking-wide">
+                Test Mode
               </div>
-              <div
-                className={`w-12 h-6 rounded-full transition-colors ${
-                  testMode ? "bg-yellow-600" : "bg-slate-700"
-                }`}
-              >
-                <div
-                  className={`w-5 h-5 rounded-full bg-white transition-transform mt-0.5 ${
-                    testMode ? "translate-x-6" : "translate-x-0.5"
-                  }`}
-                />
+              <div className="text-xs text-slate-400 mt-1">
+                {testMode
+                  ? "Enabled - Shows debug info and location picker"
+                  : "Disabled - Normal operation"}
               </div>
             </div>
-          </button>
-        </div>
-      </main>
+            <div
+              className={`w-12 h-6 rounded-full transition-colors ${
+                testMode ? "bg-yellow-600" : "bg-slate-700"
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full bg-white transition-transform mt-0.5 ${
+                  testMode ? "translate-x-6" : "translate-x-0.5"
+                }`}
+              />
+            </div>
+          </div>
+        </button>
+      </div>
     </div>
   );
 };

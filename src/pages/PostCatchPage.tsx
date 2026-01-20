@@ -80,7 +80,6 @@ export const PostCatchPage: React.FC = () => {
   const [verificationResult, setVerificationResult] =
     useState<VerificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [debugLogs, setDebugLogs] = useState<Array<{ time: string; level: string; message: string }>>([]);
   
   // Test Mode state
   const [testMode, setTestMode] = useState(() => {
@@ -108,47 +107,8 @@ export const PostCatchPage: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Capture console errors and logs for mobile debugging
-  useEffect(() => {
-    const originalError = console.error;
-    const originalLog = console.log;
-    const originalWarn = console.warn;
-
-    const addLog = (level: string, ...args: any[]) => {
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-      ).join(' ');
-      setDebugLogs(prev => [...prev.slice(-19), { // Keep last 20 logs
-        time: new Date().toLocaleTimeString(),
-        level,
-        message
-      }]);
-    };
-
-    console.error = (...args: any[]) => {
-      originalError(...args);
-      addLog('error', ...args);
-    };
-
-    console.log = (...args: any[]) => {
-      originalLog(...args);
-      addLog('log', ...args);
-    };
-
-    console.warn = (...args: any[]) => {
-      originalWarn(...args);
-      addLog('warn', ...args);
-    };
-
-    return () => {
-      console.error = originalError;
-      console.log = originalLog;
-      console.warn = originalWarn;
-    };
-  }, []);
-
-  // Load location from localStorage on mount
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(() => {
+  // Load location from localStorage on mount, default to Block Island
+  const [location, setLocation] = useState<{ lat: number; lng: number }>(() => {
     try {
       const stored = localStorage.getItem("cofish_last_location");
       if (stored) {
@@ -160,7 +120,8 @@ export const PostCatchPage: React.FC = () => {
     } catch {
       // ignore
     }
-    return null;
+    // Default to Block Island, Rhode Island
+    return { lat: 41.1720, lng: -71.5778 };
   });
 
   const [posting, setPosting] = useState(false);
@@ -806,13 +767,13 @@ export const PostCatchPage: React.FC = () => {
               onClick={() => setShowLocationPicker(true)}
               className="w-full rounded-lg border border-yellow-600/60 bg-yellow-950/20 px-3 py-2 text-xs text-yellow-300 hover:bg-yellow-950/30"
             >
-              {location ? `Current: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}` : "Set Location on Map"}
+              Current: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
             </button>
           ) : (
             <div className="border border-yellow-700/60 rounded-lg overflow-hidden">
               <div className="h-64 relative">
                 <MapContainer
-                  center={location ? [location.lat, location.lng] : [41.1720, -71.5778]}
+                  center={[location.lat, location.lng]}
                   zoom={13}
                   className="h-full w-full"
                   scrollWheelZoom={true}
@@ -832,14 +793,12 @@ export const PostCatchPage: React.FC = () => {
                       }
                     }}
                   />
-                  {location && (
-                    <Marker position={[location.lat, location.lng]} />
-                  )}
+                  <Marker position={[location.lat, location.lng]} />
                 </MapContainer>
               </div>
               <div className="p-2 bg-slate-900 border-t border-yellow-700/60 flex items-center justify-between">
                 <div className="text-xs text-slate-300">
-                  {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : "Click map to set location"}
+                  {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
                 </div>
                 <button
                   onClick={() => setShowLocationPicker(false)}
@@ -881,32 +840,7 @@ export const PostCatchPage: React.FC = () => {
         </div>
       )}
 
-      {/* Debug Console - Hidden but still captures logs */}
-      {testMode && debugLogs.length > 0 && (
-        <div className="mb-3 border border-yellow-700/60 bg-yellow-950/20 rounded-lg p-2 max-h-48 overflow-y-auto">
-          <div className="text-xs font-semibold text-yellow-400 mb-1">Debug Logs ({debugLogs.length})</div>
-          <div className="space-y-1 text-[10px] font-mono">
-            {debugLogs.slice(-10).map((log, idx) => (
-              <div
-                key={idx}
-                className={`p-1 rounded ${
-                  log.level === 'error'
-                    ? 'bg-rose-950/40 text-rose-300'
-                    : log.level === 'warn'
-                    ? 'bg-yellow-950/40 text-yellow-300'
-                    : 'bg-slate-800/40 text-slate-300'
-                }`}
-              >
-                <div className="flex items-start gap-2">
-                  <span className="text-slate-500 flex-shrink-0">{log.time}</span>
-                  <span className="text-slate-400 flex-shrink-0">[{log.level}]</span>
-                  <span className="break-all">{log.message}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Debug Console - Hidden but still captures logs for future use */}
 
       <AnalysisCard analysis={analysis} />
 
