@@ -15,6 +15,41 @@ import {
 import { awardPointsForVerifiedCatch } from "../api/authApi";
 
 import { AnalysisCard } from "../components/AnalysisCard";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  useMapEvents,
+} from "react-leaflet";
+import L from "leaflet";
+
+// Fix for default marker icon in react-leaflet
+import "leaflet/dist/leaflet.css";
+import icon from "leaflet/dist/images/marker-icon.png";
+import iconShadow from "leaflet/dist/images/marker-shadow.png";
+
+const DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
+const TEST_MODE_STORAGE_KEY = "cofish_test_mode";
+
+// Location picker component for test mode
+const LocationPicker: React.FC<{
+  location: { lat: number; lng: number } | null;
+  onLocationChange: (lat: number, lng: number) => void;
+}> = ({ onLocationChange }) => {
+  useMapEvents({
+    click: (e) => {
+      onLocationChange(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+};
 
 type VerificationResult = {
   verified: boolean;
@@ -46,7 +81,32 @@ export const PostCatchPage: React.FC = () => {
     useState<VerificationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [debugLogs, setDebugLogs] = useState<Array<{ time: string; level: string; message: string }>>([]);
-  const [showDebugConsole, setShowDebugConsole] = useState(false);
+  
+  // Test Mode state
+  const [testMode, setTestMode] = useState(() => {
+    try {
+      return localStorage.getItem(TEST_MODE_STORAGE_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+
+  // Sync test mode from localStorage (in case it changes on another page)
+  useEffect(() => {
+    const checkTestMode = () => {
+      try {
+        const isTestMode = localStorage.getItem(TEST_MODE_STORAGE_KEY) === "true";
+        setTestMode(isTestMode);
+      } catch {
+        // ignore
+      }
+    };
+    
+    checkTestMode();
+    const interval = setInterval(checkTestMode, 1000); // Check every second
+    return () => clearInterval(interval);
+  }, []);
 
   // Capture console errors and logs for mobile debugging
   useEffect(() => {
@@ -737,6 +797,64 @@ export const PostCatchPage: React.FC = () => {
         )}
       </div>
 
+      {/* Test Mode: Location Picker */}
+      {testMode && videoBlob && !recording && (
+        <div className="mb-4">
+          <div className="text-xs font-semibold text-yellow-400 mb-2">
+            🧪 Test Mode: Set Catch Location
+          </div>
+          {!showLocationPicker ? (
+            <button
+              onClick={() => setShowLocationPicker(true)}
+              className="w-full rounded-lg border border-yellow-600/60 bg-yellow-950/20 px-3 py-2 text-xs text-yellow-300 hover:bg-yellow-950/30"
+            >
+              {location ? `Current: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}` : "Set Location on Map"}
+            </button>
+          ) : (
+            <div className="border border-yellow-700/60 rounded-lg overflow-hidden">
+              <div className="h-64 relative">
+                <MapContainer
+                  center={location ? [location.lat, location.lng] : [41.1720, -71.5778]}
+                  zoom={13}
+                  className="h-full w-full"
+                  scrollWheelZoom={true}
+                >
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                  <LocationPicker
+                    location={location}
+                    onLocationChange={(lat, lng) => {
+                      setLocation({ lat, lng });
+                      try {
+                        localStorage.setItem("cofish_last_location", JSON.stringify({ lat, lng }));
+                      } catch {
+                        // ignore
+                      }
+                    }}
+                  />
+                  {location && (
+                    <Marker position={[location.lat, location.lng]} />
+                  )}
+                </MapContainer>
+              </div>
+              <div className="p-2 bg-slate-900 border-t border-yellow-700/60 flex items-center justify-between">
+                <div className="text-xs text-slate-300">
+                  {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : "Click map to set location"}
+                </div>
+                <button
+                  onClick={() => setShowLocationPicker(false)}
+                  className="text-xs text-yellow-400 hover:text-yellow-300"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="mb-4 space-y-2">
         <button
           disabled={isAnalyzeDisabled}
@@ -765,70 +883,76 @@ export const PostCatchPage: React.FC = () => {
         </div>
       )}
 
-      {/* Debug Console for Mobile */}
-      <div className="mb-3">
-        <button
-          onClick={() => setShowDebugConsole(!showDebugConsole)}
-          className="w-full text-xs text-slate-400 hover:text-slate-200 border border-slate-700 rounded-lg px-2 py-1 bg-slate-900/50"
-        >
-          {showDebugConsole ? '▼' : '▶'} Debug Console {debugLogs.length > 0 && `(${debugLogs.length})`}
-        </button>
-        {showDebugConsole && (
-          <div className="mt-2 border border-slate-700 bg-slate-900/90 rounded-lg p-2 max-h-64 overflow-y-auto">
-            {debugLogs.length === 0 ? (
-              <div className="text-xs text-slate-500">No logs yet...</div>
-            ) : (
-              <div className="space-y-1 text-[10px] font-mono">
-                {debugLogs.map((log, idx) => (
-                  <div
-                    key={idx}
-                    className={`p-1 rounded ${
-                      log.level === 'error'
-                        ? 'bg-rose-950/40 text-rose-300'
-                        : log.level === 'warn'
-                        ? 'bg-yellow-950/40 text-yellow-300'
-                        : 'bg-slate-800/40 text-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className="text-slate-500 flex-shrink-0">{log.time}</span>
-                      <span className="text-slate-400 flex-shrink-0">[{log.level}]</span>
-                      <span className="break-all">{log.message}</span>
-                    </div>
-                  </div>
-                ))}
+      {/* Debug Console - Hidden but still captures logs */}
+      {testMode && debugLogs.length > 0 && (
+        <div className="mb-3 border border-yellow-700/60 bg-yellow-950/20 rounded-lg p-2 max-h-48 overflow-y-auto">
+          <div className="text-xs font-semibold text-yellow-400 mb-1">Debug Logs ({debugLogs.length})</div>
+          <div className="space-y-1 text-[10px] font-mono">
+            {debugLogs.slice(-10).map((log, idx) => (
+              <div
+                key={idx}
+                className={`p-1 rounded ${
+                  log.level === 'error'
+                    ? 'bg-rose-950/40 text-rose-300'
+                    : log.level === 'warn'
+                    ? 'bg-yellow-950/40 text-yellow-300'
+                    : 'bg-slate-800/40 text-slate-300'
+                }`}
+              >
+                <div className="flex items-start gap-2">
+                  <span className="text-slate-500 flex-shrink-0">{log.time}</span>
+                  <span className="text-slate-400 flex-shrink-0">[{log.level}]</span>
+                  <span className="break-all">{log.message}</span>
+                </div>
               </div>
-            )}
-            <button
-              onClick={() => setDebugLogs([])}
-              className="mt-2 text-xs text-slate-400 hover:text-slate-200"
-            >
-              Clear logs
-            </button>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       <AnalysisCard analysis={analysis} />
 
-      {/* Uniqueness Debug Info (Development) */}
-      {verificationResult && import.meta.env.DEV && (
-        <div className="mt-3 border border-slate-700 bg-slate-900/80 rounded-lg px-3 py-2 text-xs">
-          <div className="font-semibold text-slate-300 mb-1">Uniqueness Check:</div>
-          <div className="text-slate-400">
-            Status: {verificationResult.isUnique ? (
-              <span className="text-emerald-400">✓ Unique</span>
-            ) : (
-              <span className="text-rose-400">✗ Duplicate detected</span>
-            )}
-          </div>
-          {analysis?.fishFingerprint && (
-            <div className="text-slate-500 mt-1 text-[10px]">
-              Fingerprint: {analysis.fishFingerprint}
+      {/* Test Mode: Detailed Score Explanation */}
+      {testMode && verificationResult && (
+        <div className="mt-3 border border-yellow-700/60 bg-yellow-950/20 rounded-lg px-3 py-2 text-xs">
+          <div className="font-semibold text-yellow-400 mb-2">🧪 Test Mode - Verification Details</div>
+          
+          <div className="space-y-2 text-slate-300">
+            <div>
+              <span className="font-semibold">Alive Score:</span>{" "}
+              <span className={verificationResult.aliveScore >= 0.01 ? "text-emerald-400" : "text-rose-400"}>
+                {verificationResult.aliveScore.toFixed(3)}
+              </span>
+              {" "}(need ≥0.01)
             </div>
-          )}
-          <div className="text-slate-500 mt-1 text-[10px]">
-            Check browser console for detailed similarity scores
+            
+            <div>
+              <span className="font-semibold">Confidence:</span>{" "}
+              <span className={verificationResult.confidence >= 0.6 ? "text-emerald-400" : "text-rose-400"}>
+                {verificationResult.confidence.toFixed(3)}
+              </span>
+              {" "}(need ≥0.6)
+            </div>
+            
+            <div>
+              <span className="font-semibold">Uniqueness:</span>{" "}
+              {verificationResult.isUnique ? (
+                <span className="text-emerald-400">✓ Unique</span>
+              ) : (
+                <span className="text-rose-400">✗ Duplicate detected</span>
+              )}
+            </div>
+            
+            {analysis?.fishFingerprint && (
+              <div className="mt-2 pt-2 border-t border-yellow-700/30">
+                <div className="font-semibold text-yellow-300 mb-1">Fish Fingerprint:</div>
+                <div className="text-slate-400 text-[10px]">{analysis.fishFingerprint}</div>
+              </div>
+            )}
+            
+            <div className="mt-2 pt-2 border-t border-yellow-700/30 text-[10px] text-slate-400">
+              Verification requires: Alive Score ≥0.01 AND Confidence ≥0.6 AND Unique
+            </div>
           </div>
         </div>
       )}
@@ -851,6 +975,14 @@ export const PostCatchPage: React.FC = () => {
                 Your catch has been verified as alive and unique! You'll receive
                 100 points when you post it.
               </div>
+              {testMode && (
+                <div className="mb-4 p-2 bg-yellow-950/20 border border-yellow-700/60 rounded text-xs text-slate-300">
+                  <div className="font-semibold text-yellow-400 mb-1">Test Mode Details:</div>
+                  <div>Alive Score: {verificationResult.aliveScore.toFixed(3)} (≥0.01 ✓)</div>
+                  <div>Confidence: {verificationResult.confidence.toFixed(3)} (≥0.6 ✓)</div>
+                  <div>Unique: {verificationResult.isUnique ? "Yes ✓" : "No ✗"}</div>
+                </div>
+              )}
               <button
                 onClick={handlePostCatch}
                 disabled={posting || postSuccess}

@@ -1,4 +1,5 @@
 // amplify/backend/function/cofishapplambda/src/index.js
+// Updated: API key configuration
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

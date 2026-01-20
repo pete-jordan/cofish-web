@@ -304,45 +304,75 @@ export async function purchaseTargetZone({
     );
   }
 
-  // Very simple “nearby catches” for MVP
+  // Find catches within the purchased radius for karma tracking
   let includedCatchIds: string[] | null = null;
   let avgAgeHours: number | null = null;
 
-  if (listCatchesQuery) {
-    try {
-      const now = new Date();
+  try {
+    // Get catches within the purchase radius (within last 30 days for relevance)
+    const hoursBack = 24 * 30; // 30 days
+    const nearbyCatches = await getNearbyCatches({
+      centerLat,
+      centerLng,
+      radiusMiles,
+      hoursBack,
+    });
 
-      const result: any = await apiClient.graphql({
-        query: listCatchesQuery,
-        variables: {
-          filter: {
-            userId: { ne: profile.id },
-          },
-          limit: 20,
-        },
-      });
+    // Apply species filter if provided by fetching catch records and filtering client-side
+    let filteredCatches = nearbyCatches;
+    if (speciesFilter && nearbyCatches.length > 0) {
+      const listCatchesQuery = (queries as any).listCatches;
+      if (listCatchesQuery) {
+        try {
+          // Fetch catch records for nearby catches to check species
+          const result: any = await apiClient.graphql({
+            query: listCatchesQuery,
+            variables: {
+              limit: 500, // Get enough to cover nearby catches
+            },
+          });
+          const items: any[] = result.data?.listCatches?.items ?? [];
+          
+          // Create a map of catch ID to species
+          const catchSpeciesMap = new Map<string, string | null>();
+          items.forEach((item) => {
+            if (item.id && nearbyCatches.some((c) => c.id === item.id)) {
+              catchSpeciesMap.set(item.id, item.species || null);
+            }
+          });
 
-      const items: any[] = result.data?.listCatches?.items ?? [];
-
-      if (items.length > 0) {
-        includedCatchIds = items.map((i) => i.id);
-
-        const totalHours = items.reduce((sum, i) => {
-          try {
-            const created = new Date(i.createdAt);
-            const diffMs = now.getTime() - created.getTime();
-            const hours = diffMs / (1000 * 60 * 60);
-            return sum + hours;
-          } catch {
-            return sum;
-          }
-        }, 0);
-
-        avgAgeHours = totalHours / items.length;
+          // Filter to only catches matching the species filter
+          filteredCatches = nearbyCatches.filter((c) => {
+            const species = catchSpeciesMap.get(c.id);
+            return species && species.toLowerCase() === speciesFilter.toLowerCase();
+          });
+        } catch (e) {
+          console.warn("purchaseTargetZone: species filter failed", e);
+          // Continue without species filter if query fails
+        }
       }
-    } catch (e) {
-      console.warn("purchaseTargetZone: listCatches failed", e);
     }
+
+    if (filteredCatches.length > 0) {
+      includedCatchIds = filteredCatches.map((c) => c.id);
+
+      // Calculate average age of included catches
+      const now = Date.now();
+      const totalHours = filteredCatches.reduce((sum, c) => {
+        try {
+          const created = new Date(c.createdAt).getTime();
+          const hours = (now - created) / (1000 * 60 * 60);
+          return sum + hours;
+        } catch {
+          return sum;
+        }
+      }, 0);
+
+      avgAgeHours = totalHours / filteredCatches.length;
+    }
+  } catch (e) {
+    console.warn("purchaseTargetZone: getNearbyCatches failed", e);
+    // Continue without includedCatchIds if location filtering fails
   }
 
   // 3) Create InfoPurchase
@@ -416,6 +446,13 @@ export async function purchaseTargetZone({
 }
 
 // ---------- KARMA HELPERS ----------
+
+/**
+ * Distance threshold (in miles) for awarding karma points.
+ * A new catch must be within this distance of a source catch to award karma.
+ * This is independent of the target zone purchase radius.
+ */
+const KARMA_PROXIMITY_RADIUS_MILES = 2;
 
 export async function awardKarmaToCatch(catchId: string, amount: number = 50) {
   const getCatchQuery = (queries as any).getCatch;
@@ -564,19 +601,75 @@ export async function awardKarmaForNewCatch(catchRecord: any) {
     return;
   }
 
+  // Get the new catch's location
+  const newCatchLat = catchRecord.lat;
+  const newCatchLng = catchRecord.lng;
+  
+  if (!newCatchLat || !newCatchLng) {
+    console.warn("awardKarmaForNewCatch: new catch missing location, cannot award karma");
+    return;
+  }
+
+  const getCatchQuery = (queries as any).getCatch;
+  if (!getCatchQuery) {
+    console.warn("awardKarmaForNewCatch: getCatch query not found");
+    return;
+  }
+
   const awardedCatchIds = new Set<string>();
 
   for (const purchase of purchases) {
     const included: string[] = purchase.includedCatchIds ?? [];
+    
     for (const sourceCatchId of included) {
       if (!sourceCatchId || awardedCatchIds.has(sourceCatchId)) continue;
-      awardedCatchIds.add(sourceCatchId);
-
+      
       try {
-        await awardKarmaToCatch(sourceCatchId, 50);
+        // Fetch the source catch to get its location
+        const sourceCatchResult: any = await apiClient.graphql({
+          query: getCatchQuery,
+          variables: { id: sourceCatchId },
+        });
+        const sourceCatch = sourceCatchResult.data?.getCatch;
+        
+        if (!sourceCatch) {
+          console.warn(`awardKarmaForNewCatch: source catch ${sourceCatchId} not found`);
+          continue;
+        }
+        
+        const sourceCatchLat = sourceCatch.lat;
+        const sourceCatchLng = sourceCatch.lng;
+        
+        if (!sourceCatchLat || !sourceCatchLng) {
+          console.warn(`awardKarmaForNewCatch: source catch ${sourceCatchId} missing location`);
+          continue;
+        }
+        
+        // Check if new catch is within karma proximity radius of source catch
+        const distanceMiles = haversineMiles(
+          newCatchLat,
+          newCatchLng,
+          sourceCatchLat,
+          sourceCatchLng
+        );
+        
+        if (distanceMiles <= KARMA_PROXIMITY_RADIUS_MILES) {
+          // New catch is near the source catch - award karma
+          awardedCatchIds.add(sourceCatchId);
+          await awardKarmaToCatch(sourceCatchId, 50);
+          console.log(
+            `awardKarmaForNewCatch: awarded karma to catch ${sourceCatchId} ` +
+            `(distance: ${distanceMiles.toFixed(2)} miles, karma radius: ${KARMA_PROXIMITY_RADIUS_MILES} miles)`
+          );
+        } else {
+          console.log(
+            `awardKarmaForNewCatch: skipped catch ${sourceCatchId} ` +
+            `(distance: ${distanceMiles.toFixed(2)} miles > karma radius: ${KARMA_PROXIMITY_RADIUS_MILES} miles)`
+          );
+        }
       } catch (e) {
         console.warn(
-          "awardKarmaForNewCatch: awardKarmaToCatch failed for",
+          "awardKarmaForNewCatch: failed to process source catch",
           sourceCatchId,
           e
         );
@@ -684,6 +777,14 @@ export async function awardPointsForVerifiedCatch(catchId: string) {
         e?.message ||
         "Failed to update user points balance."
     );
+  }
+
+  // 4) Award karma to catches that helped this user (non-blocking)
+  try {
+    await awardKarmaForNewCatch(catchRecord);
+  } catch (e) {
+    // Don't fail the whole operation if karma fails
+    console.warn("awardPointsForVerifiedCatch: awardKarmaForNewCatch failed", e);
   }
 
   return {
