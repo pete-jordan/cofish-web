@@ -3,12 +3,31 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUserLedger } from "../api/authApi";
 import type { LedgerEntry, UserProfile } from "../api/authApi";
+import { CatchDetailsModal } from "../components/CatchDetailsModal";
+
+// Helper function to get thumbnail URL from S3 key
+// For now, we'll construct a direct S3 URL. In production, you might want to use presigned URLs.
+function getThumbnailUrl(thumbnailKey: string | null | undefined): string | null {
+  if (!thumbnailKey) return null;
+  
+  // If thumbnailKey is already a full URL, return it
+  if (thumbnailKey.startsWith("http://") || thumbnailKey.startsWith("https://")) {
+    return thumbnailKey;
+  }
+  
+  // Construct S3 URL (this assumes the bucket is public or you have proper access)
+  // In production, you'd want to use Amplify Storage or a presigned URL endpoint
+  const bucketName = import.meta.env.VITE_S3_BUCKET_NAME || "amplify-cofishapp-dev-03094-storage-cofishstorage";
+  const region = import.meta.env.VITE_AWS_REGION || "us-east-1";
+  return `https://${bucketName}.s3.${region}.amazonaws.com/${thumbnailKey}`;
+}
 
 export const PointsHistoryPage: React.FC = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCatch, setSelectedCatch] = useState<LedgerEntry | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -89,15 +108,44 @@ export const PointsHistoryPage: React.FC = () => {
           const karmaPoints = entry.karmaPoints ?? 0;
           const total = absChange;
 
+          const thumbnailUrl = isCatch ? getThumbnailUrl(entry.thumbnailKey) : null;
+
           return (
             <div
-  key={`${entry.type}-${entry.id}`}
-  className="rounded-2xl bg-slate-900 border border-slate-700 px-4 py-3 shadow-sm shadow-slate-900/60 flex items-center gap-3"
->
-  {/* Thumbnail */}
-  <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center">
-    <span className="text-lg">{icon}</span>
-  </div>
+              key={`${entry.type}-${entry.id}`}
+              className={`rounded-2xl bg-slate-900 border border-slate-700 px-4 py-3 shadow-sm shadow-slate-900/60 flex items-center gap-3 ${
+                isCatch ? "cursor-pointer hover:bg-slate-800 transition-colors" : ""
+              }`}
+              onClick={() => {
+                if (isCatch) {
+                  setSelectedCatch(entry);
+                }
+              }}
+            >
+              {/* Thumbnail */}
+              {isCatch && thumbnailUrl ? (
+                <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-800 flex-shrink-0">
+                  <img
+                    src={thumbnailUrl}
+                    alt="Catch thumbnail"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback to icon if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = "none";
+                      const parent = target.parentElement;
+                      if (parent) {
+                        parent.innerHTML = `<span class="text-lg">${icon}</span>`;
+                        parent.className = "w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center flex-shrink-0";
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center flex-shrink-0">
+                  <span className="text-lg">{icon}</span>
+                </div>
+              )}
 
   {/* Main */}
   <div className="flex-1">
@@ -164,6 +212,14 @@ export const PointsHistoryPage: React.FC = () => {
         purchases are shown here. In production, karma is awarded when other
         anglers succeed using your shared information.
       </p>
+
+      {/* Catch Details Modal */}
+      {selectedCatch && selectedCatch.type === "CATCH" && (
+        <CatchDetailsModal
+          entry={selectedCatch}
+          onClose={() => setSelectedCatch(null)}
+        />
+      )}
     </div>
   );
 };

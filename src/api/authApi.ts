@@ -36,6 +36,11 @@ export type LedgerEntry = {
   karmaPoints?: number;
   totalPoints: number; // positive for catches, negative for purchases
   newBalance: number;  // balance AFTER this entry
+  // Catch-specific fields (only present for CATCH type)
+  thumbnailKey?: string | null;
+  species?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 };
 
 // ---------- BASIC AUTH ----------
@@ -855,6 +860,11 @@ export async function getUserLedger(): Promise<{
     basePoints?: number;
     karmaPoints?: number;
     deltaPoints: number;
+    // Catch-specific fields (only present for CATCH type)
+    thumbnailKey?: string | null;
+    species?: string | null;
+    lat?: number | null;
+    lng?: number | null;
   };
 
   const events: Event[] = [];
@@ -879,6 +889,10 @@ export async function getUserLedger(): Promise<{
       basePoints,
       karmaPoints,
       deltaPoints: total,
+      thumbnailKey: c.thumbnailKey,
+      species: c.species,
+      lat: c.lat,
+      lng: c.lng,
     });
   }
 
@@ -925,6 +939,13 @@ export async function getUserLedger(): Promise<{
       karmaPoints: ev.karmaPoints,
       totalPoints,
       newBalance,
+      // Include catch-specific fields if this is a catch
+      ...(ev.type === "CATCH" && {
+        thumbnailKey: (ev as any).thumbnailKey,
+        species: (ev as any).species,
+        lat: (ev as any).lat,
+        lng: (ev as any).lng,
+      }),
     });
 
     runningBalance -= ev.deltaPoints;
