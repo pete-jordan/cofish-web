@@ -5,45 +5,7 @@ import { getUserLedger } from "../api/authApi";
 import type { LedgerEntry, UserProfile } from "../api/authApi";
 import { CatchDetailsModal } from "../components/CatchDetailsModal";
 
-// Helper function to get thumbnail URL from S3 key
-// Try to use videoKey to generate thumbnail URL if thumbnailKey doesn't exist
-function getThumbnailUrl(thumbnailKey: string | null | undefined, videoKey?: string | null): string | null {
-  // If we have a thumbnailKey, try to construct URL
-  if (thumbnailKey) {
-    // If thumbnailKey is already a full URL, return it
-    if (thumbnailKey.startsWith("http://") || thumbnailKey.startsWith("https://")) {
-      return thumbnailKey;
-    }
-    
-    // Construct S3 URL - try different formats
-    const bucketName = import.meta.env.VITE_S3_BUCKET_NAME || "amplify-cofishapp-dev-03094-storage-cofishstorage";
-    const region = import.meta.env.VITE_AWS_REGION || "us-east-1";
-    
-    // Try direct S3 URL
-    return `https://${bucketName}.s3.${region}.amazonaws.com/${thumbnailKey}`;
-  }
-  
-  // If no thumbnailKey but we have videoKey, try to derive thumbnail path
-  // Thumbnails might be stored as: catches/{catchId}_thumb.jpg or similar
-  if (videoKey) {
-    const bucketName = import.meta.env.VITE_S3_BUCKET_NAME || "amplify-cofishapp-dev-03094-storage-cofishstorage";
-    const region = import.meta.env.VITE_AWS_REGION || "us-east-1";
-    
-    // Try common thumbnail naming patterns
-    const videoKeyWithoutExt = videoKey.replace(/\.(mp4|webm|mov)$/i, "");
-    const possibleThumbnailKeys = [
-      `${videoKeyWithoutExt}_thumb.jpg`,
-      `${videoKeyWithoutExt}.jpg`,
-      videoKey.replace(/\.(mp4|webm|mov)$/i, ".jpg"),
-      videoKey.replace(/\.(mp4|webm|mov)$/i, "_thumb.jpg"),
-    ];
-    
-    // Return first possible thumbnail URL (we'll let the image onError handle if it doesn't exist)
-    return `https://${bucketName}.s3.${region}.amazonaws.com/${possibleThumbnailKeys[0]}`;
-  }
-  
-  return null;
-}
+import { getThumbnailUrlSync } from "../utils/thumbnailUrl";
 
 export const PointsHistoryPage: React.FC = () => {
   const navigate = useNavigate();
@@ -51,6 +13,7 @@ export const PointsHistoryPage: React.FC = () => {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCatch, setSelectedCatch] = useState<LedgerEntry | null>(null);
+  const [thumbnailUrls, setThumbnailUrls] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -58,6 +21,25 @@ export const PointsHistoryPage: React.FC = () => {
         const { profile, entries } = await getUserLedger();
         setProfile(profile);
         setEntries(entries);
+        
+        // Load thumbnail URLs for all catches
+        const { getThumbnailUrl } = await import("../utils/thumbnailUrl");
+        const urlMap: Record<string, string> = {};
+        await Promise.all(
+          entries
+            .filter(e => e.type === "CATCH" && (e.thumbnailKey || e.videoKey))
+            .map(async (entry) => {
+              try {
+                const url = await getThumbnailUrl(entry.thumbnailKey, entry.videoKey);
+                if (url) {
+                  urlMap[entry.id] = url;
+                }
+              } catch (error) {
+                console.warn(`Failed to load thumbnail URL for catch ${entry.id}:`, error);
+              }
+            })
+        );
+        setThumbnailUrls(urlMap);
       } catch (e) {
         console.error("Failed to load ledger:", e);
         navigate("/signin", { replace: true });
@@ -131,7 +113,7 @@ export const PointsHistoryPage: React.FC = () => {
           const karmaPoints = entry.karmaPoints ?? 0;
           const total = absChange;
 
-          const thumbnailUrl = isCatch ? getThumbnailUrl(entry.thumbnailKey, entry.videoKey) : null;
+          const thumbnailUrl = isCatch ? (thumbnailUrls[entry.id] || getThumbnailUrlSync(entry.thumbnailKey, entry.videoKey)) : null;
 
           return (
             <div

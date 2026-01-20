@@ -5,6 +5,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import icon from "leaflet/dist/images/marker-icon.png";
 import iconShadow from "leaflet/dist/images/marker-shadow.png";
+import { getThumbnailUrlSync } from "../utils/thumbnailUrl";
 
 // Fix for default marker icon in react-leaflet
 const DefaultIcon = L.icon({
@@ -28,32 +29,28 @@ type CatchDetailsModalProps = {
   onClose: () => void;
 };
 
-// Helper function to get thumbnail URL (same as in PointsHistoryPage)
-function getThumbnailUrl(thumbnailKey: string | null | undefined, videoKey?: string | null): string | null {
-  if (thumbnailKey) {
-    if (thumbnailKey.startsWith("http://") || thumbnailKey.startsWith("https://")) {
-      return thumbnailKey;
-    }
-    const bucketName = import.meta.env.VITE_S3_BUCKET_NAME || "amplify-cofishapp-dev-03094-storage-cofishstorage";
-    const region = import.meta.env.VITE_AWS_REGION || "us-east-1";
-    return `https://${bucketName}.s3.${region}.amazonaws.com/${thumbnailKey}`;
-  }
-  if (videoKey) {
-    const bucketName = import.meta.env.VITE_S3_BUCKET_NAME || "amplify-cofishapp-dev-03094-storage-cofishstorage";
-    const region = import.meta.env.VITE_AWS_REGION || "us-east-1";
-    const videoKeyWithoutExt = videoKey.replace(/\.(mp4|webm|mov)$/i, "");
-    return `https://${bucketName}.s3.${region}.amazonaws.com/${videoKeyWithoutExt}_thumb.jpg`;
-  }
-  return null;
-}
-
 export const CatchDetailsModal: React.FC<CatchDetailsModalProps> = ({
   entry,
   onClose,
 }) => {
+  const [thumbnailUrl, setThumbnailUrl] = React.useState<string | null>(null);
   const date = new Date(entry.createdAt);
   const hasLocation = entry.lat != null && entry.lng != null;
-  const thumbnailUrl = getThumbnailUrl(entry.thumbnailKey, entry.videoKey);
+
+  React.useEffect(() => {
+    const loadThumbnail = async () => {
+      try {
+        const { getThumbnailUrl } = await import("../utils/thumbnailUrl");
+        const url = await getThumbnailUrl(entry.thumbnailKey, entry.videoKey);
+        setThumbnailUrl(url);
+      } catch (error) {
+        console.warn("Failed to load thumbnail URL:", error);
+        // Fallback to sync version
+        setThumbnailUrl(getThumbnailUrlSync(entry.thumbnailKey, entry.videoKey));
+      }
+    };
+    loadThumbnail();
+  }, [entry.thumbnailKey, entry.videoKey]);
 
   // Determine zoom level - zoom out enough to show land/context
   // For ocean locations, we want to zoom out to show nearby land
