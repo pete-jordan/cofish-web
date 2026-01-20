@@ -17,6 +17,7 @@ type ActivityBucket = "NONE" | "SOME" | "GOOD" | "HIGH";
 const CENTER_STORAGE_KEY = "cofish_targetzones_center";
 const PREVIEW_STORAGE_PREFIX = "cofish_targetzones_previews_";
 const MAX_PREVIEWS = 20; // Increased for debugging
+const TARGET_ZONE_PREVIEW_LOOKBACK_DAYS = 10; // How far back to look for catches in preview activity
 
 // Helper to get YYYY-MM-DD for preview tracking
 function getTodayKey() {
@@ -184,7 +185,7 @@ export const TargetZonesPage: React.FC = () => {
     try {
       // Use a radius that roughly matches your 15x15 mi window ⇒ ~7.5 mi
       const radiusMiles = 7.5;
-      const hoursBack = 24 * 7; // last 7 days
+      const hoursBack = 24 * TARGET_ZONE_PREVIEW_LOOKBACK_DAYS;
 
       const catches: any[] = await getNearbyCatches({
         centerLat,
@@ -459,7 +460,7 @@ export const TargetZonesPage: React.FC = () => {
             <span>
               {activityLoading
                 ? "Checking..."
-                : "Preview Activity (last 7 days)"}
+                : `Preview Activity (last ${TARGET_ZONE_PREVIEW_LOOKBACK_DAYS} days)`}
             </span>
             {!previewsExhausted && previewsUsed > 0 && previewsLeft > 0 && (
               <span className="text-[10px] text-sky-100/80 mt-0.5">

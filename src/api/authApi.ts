@@ -308,8 +308,8 @@ export async function purchaseTargetZone({
   let avgAgeHours: number | null = null;
 
   try {
-    // Get catches within the purchase radius (within last 30 days for relevance)
-    const hoursBack = 24 * 30; // 30 days
+    // Get catches within the purchase radius (within lookback period for relevance)
+    const hoursBack = 24 * TARGET_ZONE_CATCH_LOOKBACK_DAYS;
     const nearbyCatches = await getNearbyCatches({
       centerLat,
       centerLng,
@@ -453,6 +453,10 @@ export async function purchaseTargetZone({
  */
 const KARMA_PROXIMITY_RADIUS_MILES = 2;
 
+// Time constants for various lookback periods (in days)
+const TARGET_ZONE_CATCH_LOOKBACK_DAYS = 10; // How far back to look for catches when purchasing a target zone
+const KARMA_PURCHASE_LOOKBACK_DAYS = 10; // How far back to look for purchases when awarding karma for a new catch
+
 export async function awardKarmaToCatch(catchId: string, amount: number = 50) {
   const getCatchQuery = (queries as any).getCatch;
   const updateCatchMutation = (mutations as any).updateCatch;
@@ -574,8 +578,8 @@ export async function awardKarmaForNewCatch(catchRecord: any) {
   const userId = catchRecord.userId;
   const createdAtStr: string = catchRecord.createdAt;
   const catchCreatedAt = createdAtStr ? new Date(createdAtStr) : new Date();
-  const oneWeekAgo = new Date(
-    catchCreatedAt.getTime() - 7 * 24 * 60 * 60 * 1000
+  const lookbackDate = new Date(
+    catchCreatedAt.getTime() - KARMA_PURCHASE_LOOKBACK_DAYS * 24 * 60 * 60 * 1000
   );
 
   let purchases: any[] = [];
@@ -584,7 +588,7 @@ export async function awardKarmaForNewCatch(catchRecord: any) {
       query: purchasesByUserQuery,
       variables: {
         userId,
-        createdAt: { ge: oneWeekAgo.toISOString() },
+        createdAt: { ge: lookbackDate.toISOString() },
         sortDirection: "DESC",
         limit: 50,
       },
@@ -856,6 +860,11 @@ export async function getUserLedger(): Promise<{
   const events: Event[] = [];
 
   for (const c of catchItems) {
+    // Only include VERIFIED catches in the ledger (they're the only ones that earned points)
+    if (c.verificationStatus !== "VERIFIED") {
+      continue; // Skip unverified, rejected, or pending catches
+    }
+
     const basePoints = c.basePoints ?? 0;
     const karmaPoints = c.karmaPoints ?? 0;
     const total = basePoints + karmaPoints;
