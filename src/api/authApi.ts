@@ -870,8 +870,9 @@ export async function getUserLedger(): Promise<{
   const events: Event[] = [];
 
   for (const c of catchItems) {
-    // Only include VERIFIED catches in the ledger (they're the only ones that earned points)
-    if (c.verificationStatus !== "VERIFIED") {
+    // Only include VERIFIED or AWARDED catches in the ledger (they're the only ones that earned points)
+    // AWARDED is set after points are awarded, VERIFIED is the status before awarding
+    if (c.verificationStatus !== "VERIFIED" && c.verificationStatus !== "AWARDED") {
       continue; // Skip unverified, rejected, or pending catches
     }
 
