@@ -23,22 +23,29 @@ export const PointsHistoryPage: React.FC = () => {
         setEntries(entries);
         
         // Load thumbnail URLs for all catches
+        console.log("🖼️ Loading thumbnail URLs for", entries.filter(e => e.type === "CATCH").length, "catches");
         const { getThumbnailUrl } = await import("../utils/thumbnailUrl");
         const urlMap: Record<string, string> = {};
+        const catchEntries = entries.filter(e => e.type === "CATCH" && (e.thumbnailKey || e.videoKey));
+        console.log("🖼️ Found", catchEntries.length, "catches with thumbnail/video keys");
+        
         await Promise.all(
-          entries
-            .filter(e => e.type === "CATCH" && (e.thumbnailKey || e.videoKey))
-            .map(async (entry) => {
-              try {
-                const url = await getThumbnailUrl(entry.thumbnailKey, entry.videoKey);
-                if (url) {
-                  urlMap[entry.id] = url;
-                }
-              } catch (error) {
-                console.warn(`Failed to load thumbnail URL for catch ${entry.id}:`, error);
+          catchEntries.map(async (entry) => {
+            try {
+              console.log(`🖼️ Loading thumbnail for catch ${entry.id}:`, { thumbnailKey: entry.thumbnailKey, videoKey: entry.videoKey });
+              const url = await getThumbnailUrl(entry.thumbnailKey, entry.videoKey);
+              if (url) {
+                urlMap[entry.id] = url;
+                console.log(`✅ Loaded thumbnail URL for catch ${entry.id}:`, url.substring(0, 80) + "...");
+              } else {
+                console.warn(`⚠️ No thumbnail URL returned for catch ${entry.id}`);
               }
-            })
+            } catch (error) {
+              console.error(`❌ Failed to load thumbnail URL for catch ${entry.id}:`, error);
+            }
+          })
         );
+        console.log("🖼️ Final thumbnail URL map:", Object.keys(urlMap).length, "URLs loaded");
         setThumbnailUrls(urlMap);
       } catch (e) {
         console.error("Failed to load ledger:", e);
@@ -114,6 +121,9 @@ export const PointsHistoryPage: React.FC = () => {
           const total = absChange;
 
           const thumbnailUrl = isCatch ? (thumbnailUrls[entry.id] || getThumbnailUrlSync(entry.thumbnailKey, entry.videoKey)) : null;
+          if (isCatch && entry.thumbnailKey) {
+            console.log(`🖼️ Rendering catch ${entry.id}, thumbnailUrl:`, thumbnailUrl ? thumbnailUrl.substring(0, 80) + "..." : "null");
+          }
 
           return (
             <div
@@ -134,7 +144,11 @@ export const PointsHistoryPage: React.FC = () => {
                     src={thumbnailUrl}
                     alt="Catch thumbnail"
                     className="w-full h-full object-cover"
+                    onLoad={() => {
+                      console.log(`✅ Image loaded successfully for catch ${entry.id}`);
+                    }}
                     onError={(e) => {
+                      console.error(`❌ Image failed to load for catch ${entry.id}, URL:`, thumbnailUrl);
                       // Fallback to icon if image fails to load
                       const target = e.target as HTMLImageElement;
                       target.style.display = "none";

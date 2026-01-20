@@ -11,14 +11,18 @@ export async function getThumbnailUrl(
   thumbnailKey: string | null | undefined,
   videoKey?: string | null
 ): Promise<string | null> {
+  console.log("🖼️ getThumbnailUrl called with:", { thumbnailKey, videoKey });
+  
   // If we have a thumbnailKey, use it
   if (thumbnailKey) {
     // If it's already a full URL, return it
     if (thumbnailKey.startsWith("http://") || thumbnailKey.startsWith("https://")) {
+      console.log("🖼️ thumbnailKey is already a full URL:", thumbnailKey);
       return thumbnailKey;
     }
     
     try {
+      console.log("🖼️ Attempting to get presigned URL for:", thumbnailKey);
       // Use Amplify Storage to get a proper URL (handles private buckets)
       const { url } = await getStorageUrl({
         key: thumbnailKey,
@@ -26,13 +30,17 @@ export async function getThumbnailUrl(
           expiresIn: 3600, // 1 hour
         },
       });
-      return url.toString();
+      const urlString = url.toString();
+      console.log("✅ Got presigned URL from Amplify Storage:", urlString.substring(0, 100) + "...");
+      return urlString;
     } catch (error) {
-      console.error("Failed to get thumbnail URL from Amplify Storage:", error);
+      console.error("❌ Failed to get thumbnail URL from Amplify Storage:", error);
       // Fallback to direct S3 URL (may not work if bucket is private)
       const bucketName = import.meta.env.VITE_S3_BUCKET_NAME || "amplify-cofishapp-dev-03094-storage-cofishstorage";
       const region = import.meta.env.VITE_AWS_REGION || "us-east-1";
-      return `https://${bucketName}.s3.${region}.amazonaws.com/${thumbnailKey}`;
+      const fallbackUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${thumbnailKey}`;
+      console.log("🔄 Using fallback direct S3 URL:", fallbackUrl);
+      return fallbackUrl;
     }
   }
   

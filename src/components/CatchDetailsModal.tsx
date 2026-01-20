@@ -39,18 +39,22 @@ export const CatchDetailsModal: React.FC<CatchDetailsModalProps> = ({
 
   React.useEffect(() => {
     const loadThumbnail = async () => {
+      console.log("🖼️ CatchDetailsModal: Loading thumbnail for catch", entry.id, { thumbnailKey: entry.thumbnailKey, videoKey: entry.videoKey });
       try {
         const { getThumbnailUrl } = await import("../utils/thumbnailUrl");
         const url = await getThumbnailUrl(entry.thumbnailKey, entry.videoKey);
+        console.log("🖼️ CatchDetailsModal: Got thumbnail URL:", url ? url.substring(0, 80) + "..." : "null");
         setThumbnailUrl(url);
       } catch (error) {
-        console.warn("Failed to load thumbnail URL:", error);
+        console.error("❌ CatchDetailsModal: Failed to load thumbnail URL:", error);
         // Fallback to sync version
-        setThumbnailUrl(getThumbnailUrlSync(entry.thumbnailKey, entry.videoKey));
+        const fallbackUrl = getThumbnailUrlSync(entry.thumbnailKey, entry.videoKey);
+        console.log("🔄 CatchDetailsModal: Using fallback URL:", fallbackUrl);
+        setThumbnailUrl(fallbackUrl);
       }
     };
     loadThumbnail();
-  }, [entry.thumbnailKey, entry.videoKey]);
+  }, [entry.thumbnailKey, entry.videoKey, entry.id]);
 
   // Determine zoom level - zoom out enough to show land/context
   // For ocean locations, we want to zoom out to show nearby land
