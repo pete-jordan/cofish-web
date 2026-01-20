@@ -526,14 +526,29 @@ export const PostCatchPage: React.FC = () => {
       }
       console.log("Video upload successful");
 
+      setUploadStatus("Creating thumbnail…");
+
+      // 3) Create and upload thumbnail
+      let thumbnailKey: string | null = null;
+      try {
+        const { captureThumbnailFrame, uploadThumbnail } = await import("../api/thumbnailApi");
+        const thumbnailBlob = await captureThumbnailFrame(videoBlob);
+        thumbnailKey = await uploadThumbnail(newCatchId, thumbnailBlob);
+        console.log("Thumbnail uploaded successfully:", thumbnailKey);
+      } catch (thumbnailError: any) {
+        console.warn("Thumbnail creation/upload failed (non-fatal):", thumbnailError);
+        // Continue without thumbnail - it's not critical
+      }
+
       setUploadStatus("Upload complete. Creating catch record…");
 
-      // 3) create pending Catch with location
+      // 4) create pending Catch with location and thumbnail
       await createPendingCatchFromUpload({
         catchId: newCatchId,
         s3Key,
         lat: location.lat,
         lng: location.lng,
+        thumbnailKey,
       });
 
       setUploadStatus("Analyzing video…");

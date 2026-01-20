@@ -10,6 +10,7 @@ export type CreatePendingCatchParams = {
   s3Key: string;
   lat?: number;
   lng?: number;
+  thumbnailKey?: string | null;
 };
 
 export type CatchRecord = {
@@ -41,7 +42,7 @@ export type CatchRecord = {
 export async function createPendingCatchFromUpload(
   params: CreatePendingCatchParams
 ) {
-  const { catchId, s3Key, lat, lng } = params;
+  const { catchId, s3Key, lat, lng, thumbnailKey } = params;
 
   const user = await ensureUserRecord();
   if (!user) {
@@ -65,6 +66,10 @@ export async function createPendingCatchFromUpload(
   if (typeof lat === "number" && typeof lng === "number") {
     input.lat = lat;
     input.lng = lng;
+  }
+
+  if (thumbnailKey) {
+    input.thumbnailKey = thumbnailKey;
   }
 
   const result = await apiClient.graphql({

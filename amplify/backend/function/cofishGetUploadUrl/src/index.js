@@ -59,9 +59,20 @@ exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body || "{}");
     const contentType = body.contentType || "video/webm";
+    const uploadType = body.type || "video"; // "video" or "thumbnail"
+    const existingCatchId = body.catchId; // For thumbnail uploads
 
-    const catchId = makeCatchId();
-    const s3Key = `catches/${catchId}.mp4`;
+    let catchId, s3Key;
+    
+    if (uploadType === "thumbnail" && existingCatchId) {
+      // Thumbnail upload - use existing catchId
+      catchId = existingCatchId;
+      s3Key = `catches/${catchId}_thumb.jpg`;
+    } else {
+      // Video upload - generate new catchId
+      catchId = makeCatchId();
+      s3Key = `catches/${catchId}.mp4`;
+    }
 
     const command = new PutObjectCommand({
       Bucket: bucketName,
@@ -73,11 +84,12 @@ exports.handler = async (event) => {
       Bucket: bucketName,
       Key: s3Key,
       ContentType: contentType,
+      Type: uploadType,
     });
 
     const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 600 });
 
-    console.log("Generated uploadUrl for catchId:", catchId);
+    console.log(`Generated uploadUrl for ${uploadType}, catchId: ${catchId}`);
 
     return {
       statusCode: 200,
@@ -89,6 +101,7 @@ exports.handler = async (event) => {
         uploadUrl,
         catchId,
         s3Key,
+        ...(uploadType === "thumbnail" && { thumbnailKey: s3Key }),
       }),
     };
   } catch (err) {
